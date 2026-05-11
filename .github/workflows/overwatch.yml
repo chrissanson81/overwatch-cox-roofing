@@ -1,0 +1,36 @@
+name: OVERWATCH — Daily Report
+
+on:
+  schedule:
+    # Runs at 3:00 AM UTC = 11:00 PM EST (accounting for UTC-4 EDT)
+    # Gives time to process data and deliver by 8 AM EST
+    - cron: '0 3 * * *'
+  
+  # Also allows manual trigger from GitHub for testing
+  workflow_dispatch:
+
+jobs:
+  run-overwatch:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: .
+
+      - name: Run OVERWATCH
+        env:
+          JOBNIMBUS_API_KEY: ${{ secrets.JOBNIMBUS_API_KEY }}
+          SALESRABBIT_API_KEY: ${{ secrets.SALESRABBIT_API_KEY }}
+          EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+        run: node src/index.js

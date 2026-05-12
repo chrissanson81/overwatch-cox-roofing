@@ -759,6 +759,10 @@ async function main() {
     ]);
 
     console.log(`JobNimbus: ${jnData.activities.length} activities, ${jnData.jobs.length} jobs`);
+console.log('First JN activity raw:', JSON.stringify(jnData.activities[0], null, 2));
+console.log('First JN job raw:', JSON.stringify(jnData.jobs[0], null, 2));
+console.log('First SR lead raw:', JSON.stringify(srData.leads[0], null, 2));
+console.log('First rep ID:', reps[0]?.id, '| Type:', typeof reps[0]?.id);
     console.log(`Sales Rabbit: ${srData.leads.length} leads, ${srData.users.length} users`);
 
     // 2. Build rep list from Sales Rabbit users (source of truth for active reps)

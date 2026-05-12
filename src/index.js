@@ -122,7 +122,7 @@ async function fetchJobNimbusData(dateRange) {
   };
   const activitiesRes = await apiGet(
     CONFIG.jobnimbus.baseUrl,
-    `${CONFIG.jobnimbus.basePath}/activities?limit=500`,
+    `${CONFIG.jobnimbus.basePath}/activities?limit=1000&sort=-date_created`,
     headers
   );
 
@@ -176,54 +176,158 @@ async function fetchSalesRabbitData(dateRange) {
 }
 
 // ── SCORE JOBNIMBUS ────────────────────────────────────────────
-function scoreJobNimbus(repActivities, allJobs, repId, dateRange) {
+function scoreJobNimbus(repActivities, allJobs, repName, dateRange) {
   let pts = 0;
   let contracts = 0;
   let estimates = 0;
   let appointments = 0;
   let leads = 0;
   let stageMoves = 0;
-  const notesPerJob = {};
+  let notes = 0;
   let tasks = 0;
+  const notesPerJob = {};
   const flags = [];
   const detail = [];
 
-  // Business hours window (72hrs in seconds = 259200)
   const BIZ_HOURS_72 = 72 * 3600;
 
   for (const act of repActivities) {
-    const type = (act.type || act.activity_type || '').toLowerCase();
-    const note = act.note || act.description || '';
+    const type = (act.record_type_name || act.type || '').toLowerCase().trim();
+    const note = (act.note || act.description || '').toLowerCase();
+    const jobId = act.job_id || act.jnid || '';
 
-    if (type.includes('contract') || type.includes('won') || note.toLowerCase().includes('contract signed')) {
+    // ── CONTRACT / SOLD ──────────────────────────────────────
+    if (
+      type === 'status changed' && (
+        note.includes('=> sold') ||
+        note.includes('=> approved') ||
+        note.includes('=> won') ||
+        note.includes('contract signed')
+      )
+    ) {
       contracts++;
       pts += WEIGHTS.jobnimbus.contractSigned;
-      detail.push({ label: 'Contract Signed', value: `+${WEIGHTS.jobnimbus.contractSigned} pts`, good: true });
-    } else if (type.includes('estimate') || type.includes('proposal')) {
+      detail.push({ label: 'Contract / Job Sold', value: `+${WEIGHTS.jobnimbus.contractSigned} pts`, good: true });
+
+    // ── ESTIMATE SUBMITTED ───────────────────────────────────
+    } else if (
+      type === 'estimate created' ||
+      type === 'estimate modified' ||
+      (type === 'status changed' && note.includes('draft => sent')) ||
+      (type === 'status changed' && note.includes('estimate'))
+    ) {
       estimates++;
       pts += WEIGHTS.jobnimbus.estimateSubmitted;
       detail.push({ label: 'Estimate Submitted', value: `+${WEIGHTS.jobnimbus.estimateSubmitted} pts`, good: true });
-    } else if (type.includes('appointment') || type.includes('scheduled')) {
+
+    // ── APPOINTMENT SCHEDULED ────────────────────────────────
+    } else if (
+      type === 'task created' ||
+      type.includes('appointment') ||
+      type.includes('scheduled') ||
+      note.includes('appointment set') ||
+      note.includes('inspection scheduled')
+    ) {
       appointments++;
-      const isSelfGen = !note.toLowerCase().includes('company') && !note.toLowerCase().includes('provided');
-      const apptPts = isSelfGen ? WEIGHTS.jobnimbus.appointmentSelfGen : WEIGHTS.jobnimbus.appointmentCompanyLead;
+      const isSelfGen = !note.includes('company') && !note.includes('provided lead');
+      const apptPts = isSelfGen
+        ? WEIGHTS.jobnimbus.appointmentSelfGen
+        : WEIGHTS.jobnimbus.appointmentCompanyLead;
       pts += apptPts;
       detail.push({ label: `Appointment Set (${isSelfGen ? 'Self-Gen' : 'Company Lead'})`, value: `+${apptPts} pts`, good: true });
-    } else if (type.includes('lead') || type.includes('contact')) {
+
+    // ── NEW LEAD CREATED ─────────────────────────────────────
+    } else if (
+      type === 'job created' ||
+      type === 'contact created' ||
+      type.includes('lead')
+    ) {
       leads++;
       pts += WEIGHTS.jobnimbus.leadCreated;
-    } else if (type.includes('stage') || type.includes('status')) {
-      if (stageMoves < 5) { stageMoves++; pts += WEIGHTS.jobnimbus.stageMove; }
-    } else if (type.includes('note') || type.includes('comment')) {
-      const jobId = act.job_id || act.related_id || 'general';
-      notesPerJob[jobId] = (notesPerJob[jobId] || 0) + 1;
-      if (notesPerJob[jobId] <= WEIGHTS.jobnimbus.noteCap) {
+      detail.push({ label: 'Lead / Job Created', value: `+${WEIGHTS.jobnimbus.leadCreated} pts`, good: true });
+
+    // ── STAGE / STATUS MOVE ──────────────────────────────────
+    } else if (
+      type === 'status changed' ||
+      type === 'contact modified' ||
+      type.includes('stage')
+    ) {
+      if (stageMoves < 5) {
+        stageMoves++;
+        pts += WEIGHTS.jobnimbus.stageMove;
+      }
+
+    // ── NOTE LOGGED ──────────────────────────────────────────
+    } else if (
+      type === 'note' ||
+      type === 'contact modified' ||
+      type === 'web login' ||
+      type.includes('note') ||
+      type.includes('comment')
+    ) {
+      const key = jobId || 'general';
+      notesPerJob[key] = (notesPerJob[key] || 0) + 1;
+      if (notesPerJob[key] <= WEIGHTS.jobnimbus.noteCap) {
+        notes++;
         pts += WEIGHTS.jobnimbus.noteValue;
       }
+
+    // ── EMAIL SENT ───────────────────────────────────────────
+    } else if (
+      type === 'email' ||
+      type.includes('email')
+    ) {
+      pts += 2;
+      detail.push({ label: 'Email Sent via JobNimbus', value: '+2 pts', good: true });
+
+    // ── TASK COMPLETED ───────────────────────────────────────
     } else if (type.includes('task')) {
-      if (tasks < 4) { tasks++; pts += WEIGHTS.jobnimbus.taskValue; }
+      if (tasks < 4) {
+        tasks++;
+        pts += WEIGHTS.jobnimbus.taskValue;
+      }
     }
   }
+
+  // ── 72-HOUR PIPELINE VIOLATION CHECK ────────────────────────
+  const repJobs = allJobs.filter(j =>
+    (j.sales_rep_name || '').toLowerCase() === repName.toLowerCase() ||
+    (j.owners && j.owners.some(o =>
+      (o.name || '').toLowerCase() === repName.toLowerCase()
+    ))
+  );
+
+  let pipelineViolations = 0;
+  const staleJobs = [];
+
+  for (const job of repJobs) {
+    if (!job.date_updated && !job.date_status_change) continue;
+    const lastActivity = job.date_updated || job.date_status_change;
+    const ageSeconds = dateRange.end - lastActivity;
+    if (ageSeconds > BIZ_HOURS_72) {
+      pipelineViolations++;
+      pts += WEIGHTS.jobnimbus.pipelineViolationPenalty;
+      const hoursStale = Math.floor(ageSeconds / 3600);
+      staleJobs.push({ name: job.name || 'Unnamed Job', hoursStale });
+      flags.push({
+        type: 'pipeline',
+        text: `Job stale ${hoursStale}hrs: "${job.name || 'Unnamed'}"`,
+        severity: 'red'
+      });
+    }
+  }
+
+  // ── SUMMARY DETAIL ───────────────────────────────────────────
+  if (leads > 0) detail.push({ label: 'New Leads Created', value: `${leads}`, good: true });
+  if (stageMoves > 0) detail.push({ label: 'Stage Moves', value: `${stageMoves}`, good: true });
+  if (notes > 0) detail.push({ label: 'Notes Logged', value: `${notes}`, good: true });
+  if (tasks > 0) detail.push({ label: 'Tasks Completed', value: `${tasks}`, good: true });
+
+  pts = Math.min(pts, WEIGHTS.jobnimbus.platformCeiling);
+  pts = Math.max(pts, 0);
+
+  return { pts, contracts, estimates, appointments, leads, stageMoves, notes, tasks, pipelineViolations, staleJobs, flags, detail };
+}
 
   // Pipeline 72-hour violation check
   const repJobs = allJobs.filter(j => j.sales_rep_id === repId || j.assigned_to === repId);
@@ -781,13 +885,15 @@ console.log('Total reps:', reps.length);
       const repName = `${rep.firstName || rep.first_name || ''} ${rep.lastName || rep.last_name || ''}`.trim() || rep.name || rep.displayName || `Rep ${repId}`;
 
       // Filter activities for this rep
-      const repJNActivities = jnData.activities.filter(a =>
-        a.created_by === repId || a.assigned_to === repId || a.sales_rep_id === repId
-      );
+      const repFullName = repName.toLowerCase();
+      const repJNActivities = jnData.activities.filter(a => {
+        const createdBy = (a.created_by_name || a.created_by || '').toLowerCase().trim();
+        return createdBy === repName.toLowerCase().trim();
+      });
       const repSRLeads = srData.leads.filter(l => l.user_id === repId || l.assigned_to === repId);
 
       // Score platforms
-      const jnScore = scoreJobNimbus(repJNActivities, jnData.jobs, repId, dateRange);
+      const jnScore = scoreJobNimbus(repJNActivities, jnData.jobs, repName, dateRange);
       const srScore = scoreSalesRabbit(repSRLeads, rep);
 
       // CompanyCam and Email default to 0 until APIs are connected

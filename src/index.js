@@ -128,7 +128,7 @@ async function fetchJobNimbusData(dateRange) {
 
   const jobsRes = await apiGet(
     CONFIG.jobnimbus.baseUrl,
-    `${CONFIG.jobnimbus.basePath}/jobs?limit=500`,
+    `${CONFIG.jobnimbus.basePath}/jobs?limit=500&filter=${encodeURIComponent(JSON.stringify({must:[{term:{is_active:true}},{term:{is_closed:false}}]}))}`,
     headers
   );
 
@@ -301,7 +301,8 @@ function scoreJobNimbus(repActivities, allJobs, repName, dateRange) {
     if (!job.date_updated && !job.date_status_change) continue;
     const lastActivity = job.date_updated || job.date_status_change;
     const ageSeconds = dateRange.end - lastActivity;
-    if (ageSeconds > BIZ_HOURS_72) {
+    const BIZ_HOURS_336 = 336 * 3600; // 14 days max lookback
+    if (ageSeconds > BIZ_HOURS_72 && ageSeconds < BIZ_HOURS_336) {
       pipelineViolations++;
       pts += WEIGHTS.jobnimbus.pipelineViolationPenalty;
       const hoursStale = Math.floor(ageSeconds / 3600);
@@ -321,6 +322,7 @@ function scoreJobNimbus(repActivities, allJobs, repName, dateRange) {
   if (tasks > 0) detail.push({ label: 'Tasks Completed', value: `${tasks}`, good: true });
 
   pts = Math.min(pts, WEIGHTS.jobnimbus.platformCeiling);
+  pts = Math.max(pts, -20); // pipeline penalties can't exceed -20
   pts = Math.max(pts, 0);
 
   return { pts, contracts, estimates, appointments, leads, stageMoves, notes, tasks, pipelineViolations, staleJobs, flags, detail };
@@ -339,8 +341,9 @@ function scoreSalesRabbit(repLeads, repUser) {
   for (const lead of repLeads) {
     const pinLat = parseFloat(lead.latitude || 0);
     const pinLon = parseFloat(lead.longitude || 0);
-    const repLat = parseFloat(lead.gpsLatitude || lead.checkinLatitude || lead.latitude || 0);
-    const repLon = parseFloat(lead.gpsLongitude || lead.checkinLongitude || lead.longitude || 0);
+    // GPS check-in not available in leads endpoint — default to AT_LOCATION
+    // until Sales Rabbit check-in API is confirmed
+    const gpsStatus = 'AT_LOCATION';
 
     const gpsStatus = getGPSStatus(pinLat, pinLon, repLat, repLon);
     const outcome = (lead.status || lead.status_name || lead.disposition || '').toLowerCase();
@@ -819,7 +822,12 @@ async function main() {
     console.log(`Sales Rabbit: ${srData.leads.length} leads, ${srData.users.length} users`);
 
     // Build rep list from Sales Rabbit users
-    const reps = srData.users.filter(u => !u.isAdmin && !u.is_admin);
+    const EXCLUDE_USERS = ['mishell cox', 'chris cox', 'chris sanson'];
+    const reps = srData.users.filter(u => {
+      if (u.isAdmin || u.is_admin) return false;
+      const fullName = `${u.firstName || ''} ${u.lastName || ''}`.toLowerCase().trim();
+      return !EXCLUDE_USERS.includes(fullName);
+    });
     console.log(`Reps: ${reps.map(r => `${r.firstName} ${r.lastName}`).join(', ')}`);
 
     if (reps.length === 0) {

@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>OVERWATCH — Monday, May 11, 2026</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#0d0d1a; font-family:Arial,sans-serif; color:#e0e0e0; }
+.wrapper { max-width:780px; margin:0 auto; background:#0d0d1a; }
+.header { background:linear-gradient(135deg,#0a0a1a 0%,#1a1a3e 100%); padding:32px 40px 24px; border-bottom:3px solid #e94560; }
+.header-top { display:flex; justify-content:space-between; align-items:flex-start; }
+.brand { display:flex; align-items:center; gap:12px; }
+.brand-icon { width:44px;height:44px;background:#e94560;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;color:white; }
+.brand-text h1 { font-size:24px;font-weight:900;color:#fff;letter-spacing:4px; }
+.brand-text p { font-size:11px;color:#8888aa;letter-spacing:2px;margin-top:2px; }
+.report-meta { text-align:right; }
+.report-meta .date { font-size:13px;color:#aaaacc; }
+.report-meta .company { font-size:15px;font-weight:700;color:#fff;margin-top:4px; }
+.snapshot { background:#13132a;padding:16px 40px;display:flex;gap:0;border-bottom:1px solid #2a2a4a; }
+.snap-item { flex:1;text-align:center;padding:8px 0;border-right:1px solid #2a2a4a; }
+.snap-item:last-child { border-right:none; }
+.snap-val { font-size:26px;font-weight:900;color:#fff; }
+.snap-val.green { color:#2ecc71; } .snap-val.red { color:#e94560; } .snap-val.gold { color:#f1c40f; }
+.snap-label { font-size:10px;color:#6666aa;letter-spacing:1px;margin-top:4px;text-transform:uppercase; }
+.section-header { background:#1a1a3e;padding:10px 40px;border-left:4px solid #e94560;margin-top:2px; }
+.section-header h2 { font-size:11px;font-weight:700;color:#e94560;letter-spacing:3px;text-transform:uppercase; }
+.leaderboard { padding:0 40px 8px;background:#0f0f22; }
+.lb-row { display:flex;align-items:center;padding:10px 16px;border-radius:8px;margin:6px 0;gap:12px; }
+.lb-row.gold-row { background:linear-gradient(90deg,rgba(241,196,15,.15),rgba(241,196,15,.04));border:1px solid rgba(241,196,15,.3); }
+.lb-row.silver-row { background:linear-gradient(90deg,rgba(189,195,199,.12),rgba(189,195,199,.03));border:1px solid rgba(189,195,199,.25); }
+.lb-row.bronze-row { background:linear-gradient(90deg,rgba(180,100,30,.12),rgba(180,100,30,.03));border:1px solid rgba(180,100,30,.25); }
+.lb-row.normal-row { background:#13132a;border:1px solid #1e1e3a; }
+.lb-row.fail-row { background:rgba(233,69,96,.08);border:1px solid rgba(233,69,96,.25); }
+.lb-rank { width:28px;font-size:13px;font-weight:900;color:#6666aa;text-align:center; }
+.lb-name { flex:1;font-size:14px;font-weight:700;color:#e0e0ff; }
+.lb-score { font-size:22px;font-weight:900;color:#fff;width:52px;text-align:right; }
+.lb-grade { width:32px;text-align:center; }
+.grade-badge { display:inline-block;padding:3px 8px;border-radius:4px;font-size:12px;font-weight:900; }
+.lb-trend { width:28px;text-align:center;font-size:16px; }
+.lb-avg { font-size:11px;color:#6666aa;width:56px;text-align:right; }
+.rep-cards { padding:0 40px;background:#0d0d1a; }
+.rep-card { background:#13132a;border:1px solid #1e1e3a;border-radius:12px;margin:12px 0;overflow:hidden; }
+.rep-card.elite { border-color:rgba(241,196,15,.4); }
+.rep-card.on-target { border-color:rgba(46,204,113,.3); }
+.rep-card.fail { border-color:rgba(233,69,96,.35); }
+.card-header { padding:16px 20px 12px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #1e1e3a; }
+.card-avatar { width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;color:#fff;flex-shrink:0; }
+.av-blue { background:linear-gradient(135deg,#0f3460,#1a5276); }
+.card-info { flex:1; }
+.card-name { font-size:16px;font-weight:800;color:#fff; }
+.card-role { font-size:11px;color:#6666aa;letter-spacing:1px;margin-top:2px; }
+.card-score-block { text-align:right; }
+.card-big-score { font-size:36px;font-weight:900;line-height:1; }
+.score-elite { color:#f1c40f; } .score-ontarget { color:#2ecc71; } .score-ok { color:#3498db; } .score-low { color:#e67e22; } .score-fail { color:#e94560; }
+.card-grade-trend { display:flex;align-items:center;gap:6px;justify-content:flex-end;margin-top:4px; }
+.platform-bars { padding:12px 20px;display:flex;gap:8px;border-bottom:1px solid #1e1e3a; }
+.plat-bar { flex:1;background:#0d0d1a;border-radius:6px;padding:8px 10px;text-align:center; }
+.plat-name { font-size:9px;color:#6666aa;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px; }
+.plat-pts { font-size:18px;font-weight:900; }
+.plat-max { font-size:9px;color:#444466; }
+.pts-jn { color:#3498db; } .pts-sr { color:#e67e22; } .pts-cc { color:#9b59b6; } .pts-em { color:#1abc9c; }
+.activity-detail { padding:12px 20px;border-bottom:1px solid #1e1e3a; }
+.activity-detail h4 { font-size:10px;color:#6666aa;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px; }
+.act-item { display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #1a1a2e; }
+.act-item:last-child { border-bottom:none; }
+.act-label { font-size:12px;color:#aaaacc; }
+.act-val { font-size:12px;font-weight:700; }
+.val-good { color:#2ecc71; } .val-bad { color:#e94560; } .val-neutral { color:#fff; }
+.flag-row { display:flex;align-items:flex-start;gap:8px;padding:5px 0; }
+.flag-icon { font-size:13px;flex-shrink:0;margin-top:1px; }
+.flag-text { font-size:12px;color:#cc8866; }
+.flag-text.red { color:#e94560; } .flag-text.yellow { color:#f1c40f; }
+.coach-note { padding:12px 20px 16px;background:#0f0f22; }
+.coach-note h4 { font-size:10px;color:#e94560;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px; }
+.coach-text { font-size:13px;color:#aaaadd;font-style:italic;line-height:1.6;border-left:3px solid #e94560;padding-left:12px; }
+.flags-section { padding:0 40px 12px;background:#0d0d1a; }
+.flag-card { background:#1a0f0f;border:1px solid rgba(233,69,96,.3);border-radius:8px;padding:14px 18px;margin:6px 0; }
+.flag-card.yellow { background:#1a1a0a;border-color:rgba(241,196,15,.3); }
+.flag-card h4 { font-size:10px;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;color:#e94560; }
+.flag-card.yellow h4 { color:#f1c40f; }
+.actions-section { padding:12px 40px 16px;background:#0f0f22; }
+.action-item { display:flex;gap:10px;padding:10px 0;border-bottom:1px solid #1a1a2e;align-items:flex-start; }
+.action-item:last-child { border-bottom:none; }
+.action-priority { width:64px;flex-shrink:0; }
+.priority-badge { padding:3px 8px;border-radius:4px;font-size:10px;font-weight:700;text-align:center;letter-spacing:1px;display:block; }
+.p-urgent { background:rgba(233,69,96,.2);color:#e94560;border:1px solid #e94560; }
+.p-watch { background:rgba(241,196,15,.15);color:#f1c40f;border:1px solid #f1c40f; }
+.p-good { background:rgba(46,204,113,.15);color:#2ecc71;border:1px solid #2ecc71; }
+.action-text { font-size:13px;color:#ccccdd;line-height:1.5; }
+.conduct-section { padding:12px 40px 16px;background:#0d0d1a; }
+.conduct-card { background:#1a0505;border:2px solid #e94560;border-radius:8px;padding:16px 20px; }
+.conduct-card h3 { color:#e94560;font-size:13px;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px; }
+.conduct-item { background:rgba(233,69,96,.08);border-radius:6px;padding:10px 14px;margin:8px 0; }
+.conduct-rep { font-size:13px;font-weight:700;color:#fff; }
+.conduct-type { font-size:11px;color:#e94560;margin:3px 0; }
+.conduct-summary { font-size:12px;color:#aaaacc;font-style:italic; }
+.conduct-action { background:rgba(233,69,96,.15);border-radius:6px;padding:10px 14px;margin-top:12px; }
+.conduct-action p { font-size:12px;color:#e94560;font-weight:700; }
+.split-section { padding:12px 40px 16px;background:#0f0f22; }
+.split-row { display:flex;gap:12px;padding:8px 0;border-bottom:1px solid #1a1a2e;align-items:center;font-size:12px; }
+.split-job { flex:2;color:#aaaacc; } .split-reps { flex:2;color:#fff;font-weight:700; } .split-pct { flex:1;color:#3498db;text-align:right; }
+.footer { background:#080810;padding:20px 40px;border-top:1px solid #1a1a2e;display:flex;justify-content:space-between;align-items:center; }
+.footer-brand { font-size:11px;color:#333355;letter-spacing:2px; }
+.footer-time { font-size:11px;color:#333355; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="header">
+    <div class="header-top">
+      <div class="brand">
+        <div class="brand-icon">OW</div>
+        <div class="brand-text"><h1>OVERWATCH</h1><p>DAILY PERFORMANCE INTELLIGENCE</p></div>
+      </div>
+      <div class="report-meta">
+        <div class="date">Tuesday, May 12, 2026</div>
+        <div class="company">Cox Roofing &amp; Restoration</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="snapshot">
+    <div class="snap-item"><div class="snap-val">14</div><div class="snap-label">Reps Active</div></div>
+    <div class="snap-item"><div class="snap-val gold">0</div><div class="snap-label">Team Avg Score</div></div>
+    <div class="snap-item"><div class="snap-val green">0</div><div class="snap-label">Top Score</div></div>
+    <div class="snap-item"><div class="snap-val">0</div><div class="snap-label">Elite (A)</div></div>
+    <div class="snap-item"><div class="snap-val">0</div><div class="snap-label">On Target (B)</div></div>
+    <div class="snap-item"><div class="snap-val red">14</div><div class="snap-label">Failing (F)</div></div>
+  </div>
+
+  <div class="section-header"><h2>📊 Daily Leaderboard — Monday, May 11, 2026</h2></div>
+  <div class="leaderboard">
+    <div style="display:flex;padding:6px 16px;gap:12px;margin-top:8px;">
+      <div style="width:28px;font-size:10px;color:#444466;text-align:center;">RNK</div>
+      <div style="flex:1;font-size:10px;color:#444466;">REP NAME</div>
+      <div style="width:52px;font-size:10px;color:#444466;text-align:right;">SCORE</div>
+      <div style="width:32px;font-size:10px;color:#444466;text-align:center;">GRD</div>
+      <div style="width:28px;font-size:10px;color:#444466;text-align:center;">TRD</div>
+      <div style="width:56px;font-size:10px;color:#444466;text-align:right;">7D AVG</div>
+    </div>
+    
+    <div class="lb-row gold-row">
+      <div class="lb-rank" style="color:#f1c40f;">🥇</div>
+      <div class="lb-name" style="color:#e94560;">Rep 1</div>
+      <div class="lb-score" style="color:#e94560;">0</div>
+      <div class="lb-grade"><span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;">F</span></div>
+      <div class="lb-trend" style="color:#f1c40f;">→</div>
+      <div class="lb-avg" style="color:#e94560;">— avg</div>
+    </div>
+    <div class="lb-row silver-row">
+      <div class="lb-rank" style="color:#bdc3c7;">🥈</div>
+      <div class="lb-name" style="color:#e94560;">Rep 16</div>
+      <div class="lb-score" style="color:#e94560;">0</div>
+      <div class="lb-grade"><span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;">F</span></div>
+      <div class="lb-trend" style="color:#f1c40f;">→</div>
+      <div class="lb-avg" style="color:#e94560;">— avg</div>
+    </div>
+    <div class="lb-row bronze-row">
+      <div class="lb-rank" style="color:#b46421;">🥉</div>
+      <div class="lb-name" style="color:#e94560;">Rep 94</div>
+      <div class="lb-score" style="color:#e94560;">0</div>
+      <div class="lb-grade"><span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;">F</span></div>
+      <div class="lb-trend" style="color:#f1c40f;">→</div>
+      <div class="lb-avg" style="color:#e94560;">— avg</div>
+    </div>
+    <div class="lb-row fail-row">
+      <div class="lb-rank" style="color:#e94560;">4</div>
+      <div class="lb-name" style="color:#e94560;">Rep 99</div>
+      <div class="lb-score" style="color:#e94560;">0</div>
+      <div class="lb-grade"><span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;">F</span></div>
+      <div class="lb-trend" style="color:#f1c40f;">→</div>
+      <div class="lb-avg" style="color:#e94560;">— avg</div>
+    </div>
+    <div class="lb-row fail-row">
+      <div class="lb-rank" style="color:#e94560;">5</div>
+      <div class="lb-name" style="color:#e94560;">Rep 103</div>
+      <div class="lb-score" style="color:#e94560;">0</div>
+      <div class="lb-grade"><span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;">F</span></div>
+      <div class="lb-trend" style="color:#f1c40f;">→</div>
+      <div class="lb-avg" style="color:#e94560;">— avg</div>
+    </div>
+    <div class="lb-row fail-row">
+      <div class="lb-rank" style="color:#e94560;">6</div>
+      <div class="lb-name" style="color:#e94560;">Rep 104</div>
+      <div class="lb-score" style="color:#e94560;">0</div>
+      <div class="lb-grade"><span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;">F</span></div>
+      <div class="lb-trend" style="color:#f1c40f;">→</div>
+      <div class="lb-avg" style="color:#e94560;">— avg</div>
+    </div>
+    <div class="lb-row fail-row">
+      <div class="lb-rank" style="color:#e94560;">7</div>
+      <div class="lb-name" style="color:#e94560;">Rep 105</div>
+      <div class="lb-score" style="color:#e94560;">0</div>
+      <div class="lb-grade"><span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;">F</span></div>
+      <div class="lb-trend" style="color:#f1c40f;">→</div>
+      <div class="lb-avg" style="color:#e94560;">— avg</div>
+    </div>
+    <div class="lb-row fail-row">
+      <div class="lb-rank" style="color:#e94560;">8</div>
+      <div class="lb-name" style="color:#e94560;">Rep 106</div>
+      <div class="lb-score" style="color:#e94560;">0</div>
+      <div class="lb-grade"><span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;">F</span></div>
+      <div class="lb-trend" style="color:#f1c40f;">→</div>
+      <div class="lb-avg" style="color:#e94560;">— avg</div>
+    </div>
+    <div class="lb-row fail-row">
+      <div class="lb-rank" style="color:#e94560;">9</div>
+      <div class="lb-name" style="color:#e94560;">Rep 108</div>
+      <div class="lb-score" style="color:#e94560;">0</div>
+      <div class="lb-grade"><span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;">F</span></div>
+      <div class="lb-trend" style="color:#f1c40f;">→</div>
+      <div class="lb-avg" style="color:#e94560;">— avg</div>
+    </div>
+    <div class="lb-row fail-row">
+      <div class="lb-rank" style="color:#e94560;">10</div>
+      <div class="lb-name" style="color:#e94560;">Rep 109</div>
+      <div class="lb-score" style="color:#e94560;">0</div>
+      <div class="lb-grade"><span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;">F</span></div>
+      <div class="lb-trend" style="color:#f1c40f;">→</div>
+      <div class="lb-avg" style="color:#e94560;">— avg</div>
+    </div>
+    <div class="lb-row fail-row">
+      <div class="lb-rank" style="color:#e94560;">11</div>
+      <div class="lb-name" style="color:#e94560;">Rep 110</div>
+      <div class="lb-score" style="color:#e94560;">0</div>
+      <div class="lb-grade"><span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;">F</span></div>
+      <div class="lb-trend" style="color:#f1c40f;">→</div>
+      <div class="lb-avg" style="color:#e94560;">— avg</div>
+    </div>
+    <div class="lb-row fail-row">
+      <div class="lb-rank" style="color:#e94560;">12</div>
+      <div class="lb-name" style="color:#e94560;">Rep 111</div>
+      <div class="lb-score" style="color:#e94560;">0</div>
+      <div class="lb-grade"><span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;">F</span></div>
+      <div class="lb-trend" style="color:#f1c40f;">→</div>
+      <div class="lb-avg" style="color:#e94560;">— avg</div>
+    </div>
+    <div class="lb-row fail-row">
+      <div class="lb-rank" style="color:#e94560;">13</div>
+      <div class="lb-name" style="color:#e94560;">Rep 112</div>
+      <div class="lb-score" style="color:#e94560;">0</div>
+      <div class="lb-grade"><span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;">F</span></div>
+      <div class="lb-trend" style="color:#f1c40f;">→</div>
+      <div class="lb-avg" style="color:#e94560;">— avg</div>
+    </div>
+    <div class="lb-row fail-row">
+      <div class="lb-rank" style="color:#e94560;">14</div>
+      <div class="lb-name" style="color:#e94560;">Rep 113</div>
+      <div class="lb-score" style="color:#e94560;">0</div>
+      <div class="lb-grade"><span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;">F</span></div>
+      <div class="lb-trend" style="color:#f1c40f;">→</div>
+      <div class="lb-avg" style="color:#e94560;">— avg</div>
+    </div>
+  </div>
+
+  <div class="section-header" style="margin-top:16px;"><h2>👤 Individual Rep Cards</h2></div>
+  <div class="rep-cards">
+    <div class="rep-card fail">
+      <div class="card-header">
+        <div class="card-avatar av-blue">R1</div>
+        <div class="card-info">
+          <div class="card-name">Rep 1</div>
+          <div class="card-role">SALES REPRESENTATIVE  •  RANK #1</div>
+        </div>
+        <div class="card-score-block">
+          <div class="card-big-score score-fail">0</div>
+          <div class="card-grade-trend">
+            <span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;padding:3px 8px;border-radius:4px;font-size:12px;font-weight:900;">F</span>
+            <span style="color:#f1c40f;font-size:18px;">→</span>
+            <span style="font-size:11px;color:#666688;">— avg</span>
+          </div>
+        </div>
+      </div>
+      <div class="platform-bars">
+        <div class="plat-bar"><div class="plat-name">JobNimbus</div><div class="plat-pts pts-jn">0</div><div class="plat-max">/ 40</div></div>
+        <div class="plat-bar"><div class="plat-name">Sales Rabbit</div><div class="plat-pts pts-sr">0</div><div class="plat-max">/ 25</div></div>
+        <div class="plat-bar"><div class="plat-name">CompanyCam</div><div class="plat-pts pts-cc">0</div><div class="plat-max">/ 15</div></div>
+        <div class="plat-bar"><div class="plat-name">Email</div><div class="plat-pts pts-em">0</div><div class="plat-max">/ 20</div></div>
+      </div>
+      <div class="activity-detail"><h4>Activity Breakdown</h4>
+      <div class="act-item">
+        <span class="act-label">Contracts Signed</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Estimates Submitted</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Appointments Set</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Doors Knocked (GPS Verified)</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Not At Location Flags</span>
+        <span class="act-val val-good">✓ None</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Pipeline Violations (72hr)</span>
+        <span class="act-val val-good">✓ All clear</span>
+      </div></div>
+      
+      <div class="coach-note">
+        <h4>🎯 Coach's Note</h4>
+        <p class="coach-text">This is an F-grade day. Immediate check-in with Rep 1 is recommended before their next shift.</p>
+      </div>
+    </div>
+    <div class="rep-card fail">
+      <div class="card-header">
+        <div class="card-avatar av-blue">R1</div>
+        <div class="card-info">
+          <div class="card-name">Rep 16</div>
+          <div class="card-role">SALES REPRESENTATIVE  •  RANK #2</div>
+        </div>
+        <div class="card-score-block">
+          <div class="card-big-score score-fail">0</div>
+          <div class="card-grade-trend">
+            <span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;padding:3px 8px;border-radius:4px;font-size:12px;font-weight:900;">F</span>
+            <span style="color:#f1c40f;font-size:18px;">→</span>
+            <span style="font-size:11px;color:#666688;">— avg</span>
+          </div>
+        </div>
+      </div>
+      <div class="platform-bars">
+        <div class="plat-bar"><div class="plat-name">JobNimbus</div><div class="plat-pts pts-jn">0</div><div class="plat-max">/ 40</div></div>
+        <div class="plat-bar"><div class="plat-name">Sales Rabbit</div><div class="plat-pts pts-sr">0</div><div class="plat-max">/ 25</div></div>
+        <div class="plat-bar"><div class="plat-name">CompanyCam</div><div class="plat-pts pts-cc">0</div><div class="plat-max">/ 15</div></div>
+        <div class="plat-bar"><div class="plat-name">Email</div><div class="plat-pts pts-em">0</div><div class="plat-max">/ 20</div></div>
+      </div>
+      <div class="activity-detail"><h4>Activity Breakdown</h4>
+      <div class="act-item">
+        <span class="act-label">Contracts Signed</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Estimates Submitted</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Appointments Set</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Doors Knocked (GPS Verified)</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Not At Location Flags</span>
+        <span class="act-val val-good">✓ None</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Pipeline Violations (72hr)</span>
+        <span class="act-val val-good">✓ All clear</span>
+      </div></div>
+      
+      <div class="coach-note">
+        <h4>🎯 Coach's Note</h4>
+        <p class="coach-text">This is an F-grade day. Immediate check-in with Rep 16 is recommended before their next shift.</p>
+      </div>
+    </div>
+    <div class="rep-card fail">
+      <div class="card-header">
+        <div class="card-avatar av-blue">R9</div>
+        <div class="card-info">
+          <div class="card-name">Rep 94</div>
+          <div class="card-role">SALES REPRESENTATIVE  •  RANK #3</div>
+        </div>
+        <div class="card-score-block">
+          <div class="card-big-score score-fail">0</div>
+          <div class="card-grade-trend">
+            <span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;padding:3px 8px;border-radius:4px;font-size:12px;font-weight:900;">F</span>
+            <span style="color:#f1c40f;font-size:18px;">→</span>
+            <span style="font-size:11px;color:#666688;">— avg</span>
+          </div>
+        </div>
+      </div>
+      <div class="platform-bars">
+        <div class="plat-bar"><div class="plat-name">JobNimbus</div><div class="plat-pts pts-jn">0</div><div class="plat-max">/ 40</div></div>
+        <div class="plat-bar"><div class="plat-name">Sales Rabbit</div><div class="plat-pts pts-sr">0</div><div class="plat-max">/ 25</div></div>
+        <div class="plat-bar"><div class="plat-name">CompanyCam</div><div class="plat-pts pts-cc">0</div><div class="plat-max">/ 15</div></div>
+        <div class="plat-bar"><div class="plat-name">Email</div><div class="plat-pts pts-em">0</div><div class="plat-max">/ 20</div></div>
+      </div>
+      <div class="activity-detail"><h4>Activity Breakdown</h4>
+      <div class="act-item">
+        <span class="act-label">Contracts Signed</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Estimates Submitted</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Appointments Set</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Doors Knocked (GPS Verified)</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Not At Location Flags</span>
+        <span class="act-val val-good">✓ None</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Pipeline Violations (72hr)</span>
+        <span class="act-val val-good">✓ All clear</span>
+      </div></div>
+      
+      <div class="coach-note">
+        <h4>🎯 Coach's Note</h4>
+        <p class="coach-text">This is an F-grade day. Immediate check-in with Rep 94 is recommended before their next shift.</p>
+      </div>
+    </div>
+    <div class="rep-card fail">
+      <div class="card-header">
+        <div class="card-avatar av-blue">R9</div>
+        <div class="card-info">
+          <div class="card-name">Rep 99</div>
+          <div class="card-role">SALES REPRESENTATIVE  •  RANK #4</div>
+        </div>
+        <div class="card-score-block">
+          <div class="card-big-score score-fail">0</div>
+          <div class="card-grade-trend">
+            <span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;padding:3px 8px;border-radius:4px;font-size:12px;font-weight:900;">F</span>
+            <span style="color:#f1c40f;font-size:18px;">→</span>
+            <span style="font-size:11px;color:#666688;">— avg</span>
+          </div>
+        </div>
+      </div>
+      <div class="platform-bars">
+        <div class="plat-bar"><div class="plat-name">JobNimbus</div><div class="plat-pts pts-jn">0</div><div class="plat-max">/ 40</div></div>
+        <div class="plat-bar"><div class="plat-name">Sales Rabbit</div><div class="plat-pts pts-sr">0</div><div class="plat-max">/ 25</div></div>
+        <div class="plat-bar"><div class="plat-name">CompanyCam</div><div class="plat-pts pts-cc">0</div><div class="plat-max">/ 15</div></div>
+        <div class="plat-bar"><div class="plat-name">Email</div><div class="plat-pts pts-em">0</div><div class="plat-max">/ 20</div></div>
+      </div>
+      <div class="activity-detail"><h4>Activity Breakdown</h4>
+      <div class="act-item">
+        <span class="act-label">Contracts Signed</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Estimates Submitted</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Appointments Set</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Doors Knocked (GPS Verified)</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Not At Location Flags</span>
+        <span class="act-val val-good">✓ None</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Pipeline Violations (72hr)</span>
+        <span class="act-val val-good">✓ All clear</span>
+      </div></div>
+      
+      <div class="coach-note">
+        <h4>🎯 Coach's Note</h4>
+        <p class="coach-text">This is an F-grade day. Immediate check-in with Rep 99 is recommended before their next shift.</p>
+      </div>
+    </div>
+    <div class="rep-card fail">
+      <div class="card-header">
+        <div class="card-avatar av-blue">R1</div>
+        <div class="card-info">
+          <div class="card-name">Rep 103</div>
+          <div class="card-role">SALES REPRESENTATIVE  •  RANK #5</div>
+        </div>
+        <div class="card-score-block">
+          <div class="card-big-score score-fail">0</div>
+          <div class="card-grade-trend">
+            <span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;padding:3px 8px;border-radius:4px;font-size:12px;font-weight:900;">F</span>
+            <span style="color:#f1c40f;font-size:18px;">→</span>
+            <span style="font-size:11px;color:#666688;">— avg</span>
+          </div>
+        </div>
+      </div>
+      <div class="platform-bars">
+        <div class="plat-bar"><div class="plat-name">JobNimbus</div><div class="plat-pts pts-jn">0</div><div class="plat-max">/ 40</div></div>
+        <div class="plat-bar"><div class="plat-name">Sales Rabbit</div><div class="plat-pts pts-sr">0</div><div class="plat-max">/ 25</div></div>
+        <div class="plat-bar"><div class="plat-name">CompanyCam</div><div class="plat-pts pts-cc">0</div><div class="plat-max">/ 15</div></div>
+        <div class="plat-bar"><div class="plat-name">Email</div><div class="plat-pts pts-em">0</div><div class="plat-max">/ 20</div></div>
+      </div>
+      <div class="activity-detail"><h4>Activity Breakdown</h4>
+      <div class="act-item">
+        <span class="act-label">Contracts Signed</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Estimates Submitted</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Appointments Set</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Doors Knocked (GPS Verified)</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Not At Location Flags</span>
+        <span class="act-val val-good">✓ None</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Pipeline Violations (72hr)</span>
+        <span class="act-val val-good">✓ All clear</span>
+      </div></div>
+      
+      <div class="coach-note">
+        <h4>🎯 Coach's Note</h4>
+        <p class="coach-text">This is an F-grade day. Immediate check-in with Rep 103 is recommended before their next shift.</p>
+      </div>
+    </div>
+    <div class="rep-card fail">
+      <div class="card-header">
+        <div class="card-avatar av-blue">R1</div>
+        <div class="card-info">
+          <div class="card-name">Rep 104</div>
+          <div class="card-role">SALES REPRESENTATIVE  •  RANK #6</div>
+        </div>
+        <div class="card-score-block">
+          <div class="card-big-score score-fail">0</div>
+          <div class="card-grade-trend">
+            <span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;padding:3px 8px;border-radius:4px;font-size:12px;font-weight:900;">F</span>
+            <span style="color:#f1c40f;font-size:18px;">→</span>
+            <span style="font-size:11px;color:#666688;">— avg</span>
+          </div>
+        </div>
+      </div>
+      <div class="platform-bars">
+        <div class="plat-bar"><div class="plat-name">JobNimbus</div><div class="plat-pts pts-jn">0</div><div class="plat-max">/ 40</div></div>
+        <div class="plat-bar"><div class="plat-name">Sales Rabbit</div><div class="plat-pts pts-sr">0</div><div class="plat-max">/ 25</div></div>
+        <div class="plat-bar"><div class="plat-name">CompanyCam</div><div class="plat-pts pts-cc">0</div><div class="plat-max">/ 15</div></div>
+        <div class="plat-bar"><div class="plat-name">Email</div><div class="plat-pts pts-em">0</div><div class="plat-max">/ 20</div></div>
+      </div>
+      <div class="activity-detail"><h4>Activity Breakdown</h4>
+      <div class="act-item">
+        <span class="act-label">Contracts Signed</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Estimates Submitted</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Appointments Set</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Doors Knocked (GPS Verified)</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Not At Location Flags</span>
+        <span class="act-val val-good">✓ None</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Pipeline Violations (72hr)</span>
+        <span class="act-val val-good">✓ All clear</span>
+      </div></div>
+      
+      <div class="coach-note">
+        <h4>🎯 Coach's Note</h4>
+        <p class="coach-text">This is an F-grade day. Immediate check-in with Rep 104 is recommended before their next shift.</p>
+      </div>
+    </div>
+    <div class="rep-card fail">
+      <div class="card-header">
+        <div class="card-avatar av-blue">R1</div>
+        <div class="card-info">
+          <div class="card-name">Rep 105</div>
+          <div class="card-role">SALES REPRESENTATIVE  •  RANK #7</div>
+        </div>
+        <div class="card-score-block">
+          <div class="card-big-score score-fail">0</div>
+          <div class="card-grade-trend">
+            <span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;padding:3px 8px;border-radius:4px;font-size:12px;font-weight:900;">F</span>
+            <span style="color:#f1c40f;font-size:18px;">→</span>
+            <span style="font-size:11px;color:#666688;">— avg</span>
+          </div>
+        </div>
+      </div>
+      <div class="platform-bars">
+        <div class="plat-bar"><div class="plat-name">JobNimbus</div><div class="plat-pts pts-jn">0</div><div class="plat-max">/ 40</div></div>
+        <div class="plat-bar"><div class="plat-name">Sales Rabbit</div><div class="plat-pts pts-sr">0</div><div class="plat-max">/ 25</div></div>
+        <div class="plat-bar"><div class="plat-name">CompanyCam</div><div class="plat-pts pts-cc">0</div><div class="plat-max">/ 15</div></div>
+        <div class="plat-bar"><div class="plat-name">Email</div><div class="plat-pts pts-em">0</div><div class="plat-max">/ 20</div></div>
+      </div>
+      <div class="activity-detail"><h4>Activity Breakdown</h4>
+      <div class="act-item">
+        <span class="act-label">Contracts Signed</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Estimates Submitted</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Appointments Set</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Doors Knocked (GPS Verified)</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Not At Location Flags</span>
+        <span class="act-val val-good">✓ None</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Pipeline Violations (72hr)</span>
+        <span class="act-val val-good">✓ All clear</span>
+      </div></div>
+      
+      <div class="coach-note">
+        <h4>🎯 Coach's Note</h4>
+        <p class="coach-text">This is an F-grade day. Immediate check-in with Rep 105 is recommended before their next shift.</p>
+      </div>
+    </div>
+    <div class="rep-card fail">
+      <div class="card-header">
+        <div class="card-avatar av-blue">R1</div>
+        <div class="card-info">
+          <div class="card-name">Rep 106</div>
+          <div class="card-role">SALES REPRESENTATIVE  •  RANK #8</div>
+        </div>
+        <div class="card-score-block">
+          <div class="card-big-score score-fail">0</div>
+          <div class="card-grade-trend">
+            <span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;padding:3px 8px;border-radius:4px;font-size:12px;font-weight:900;">F</span>
+            <span style="color:#f1c40f;font-size:18px;">→</span>
+            <span style="font-size:11px;color:#666688;">— avg</span>
+          </div>
+        </div>
+      </div>
+      <div class="platform-bars">
+        <div class="plat-bar"><div class="plat-name">JobNimbus</div><div class="plat-pts pts-jn">0</div><div class="plat-max">/ 40</div></div>
+        <div class="plat-bar"><div class="plat-name">Sales Rabbit</div><div class="plat-pts pts-sr">0</div><div class="plat-max">/ 25</div></div>
+        <div class="plat-bar"><div class="plat-name">CompanyCam</div><div class="plat-pts pts-cc">0</div><div class="plat-max">/ 15</div></div>
+        <div class="plat-bar"><div class="plat-name">Email</div><div class="plat-pts pts-em">0</div><div class="plat-max">/ 20</div></div>
+      </div>
+      <div class="activity-detail"><h4>Activity Breakdown</h4>
+      <div class="act-item">
+        <span class="act-label">Contracts Signed</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Estimates Submitted</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Appointments Set</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Doors Knocked (GPS Verified)</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Not At Location Flags</span>
+        <span class="act-val val-good">✓ None</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Pipeline Violations (72hr)</span>
+        <span class="act-val val-good">✓ All clear</span>
+      </div></div>
+      
+      <div class="coach-note">
+        <h4>🎯 Coach's Note</h4>
+        <p class="coach-text">This is an F-grade day. Immediate check-in with Rep 106 is recommended before their next shift.</p>
+      </div>
+    </div>
+    <div class="rep-card fail">
+      <div class="card-header">
+        <div class="card-avatar av-blue">R1</div>
+        <div class="card-info">
+          <div class="card-name">Rep 108</div>
+          <div class="card-role">SALES REPRESENTATIVE  •  RANK #9</div>
+        </div>
+        <div class="card-score-block">
+          <div class="card-big-score score-fail">0</div>
+          <div class="card-grade-trend">
+            <span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;padding:3px 8px;border-radius:4px;font-size:12px;font-weight:900;">F</span>
+            <span style="color:#f1c40f;font-size:18px;">→</span>
+            <span style="font-size:11px;color:#666688;">— avg</span>
+          </div>
+        </div>
+      </div>
+      <div class="platform-bars">
+        <div class="plat-bar"><div class="plat-name">JobNimbus</div><div class="plat-pts pts-jn">0</div><div class="plat-max">/ 40</div></div>
+        <div class="plat-bar"><div class="plat-name">Sales Rabbit</div><div class="plat-pts pts-sr">0</div><div class="plat-max">/ 25</div></div>
+        <div class="plat-bar"><div class="plat-name">CompanyCam</div><div class="plat-pts pts-cc">0</div><div class="plat-max">/ 15</div></div>
+        <div class="plat-bar"><div class="plat-name">Email</div><div class="plat-pts pts-em">0</div><div class="plat-max">/ 20</div></div>
+      </div>
+      <div class="activity-detail"><h4>Activity Breakdown</h4>
+      <div class="act-item">
+        <span class="act-label">Contracts Signed</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Estimates Submitted</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Appointments Set</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Doors Knocked (GPS Verified)</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Not At Location Flags</span>
+        <span class="act-val val-good">✓ None</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Pipeline Violations (72hr)</span>
+        <span class="act-val val-good">✓ All clear</span>
+      </div></div>
+      
+      <div class="coach-note">
+        <h4>🎯 Coach's Note</h4>
+        <p class="coach-text">This is an F-grade day. Immediate check-in with Rep 108 is recommended before their next shift.</p>
+      </div>
+    </div>
+    <div class="rep-card fail">
+      <div class="card-header">
+        <div class="card-avatar av-blue">R1</div>
+        <div class="card-info">
+          <div class="card-name">Rep 109</div>
+          <div class="card-role">SALES REPRESENTATIVE  •  RANK #10</div>
+        </div>
+        <div class="card-score-block">
+          <div class="card-big-score score-fail">0</div>
+          <div class="card-grade-trend">
+            <span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;padding:3px 8px;border-radius:4px;font-size:12px;font-weight:900;">F</span>
+            <span style="color:#f1c40f;font-size:18px;">→</span>
+            <span style="font-size:11px;color:#666688;">— avg</span>
+          </div>
+        </div>
+      </div>
+      <div class="platform-bars">
+        <div class="plat-bar"><div class="plat-name">JobNimbus</div><div class="plat-pts pts-jn">0</div><div class="plat-max">/ 40</div></div>
+        <div class="plat-bar"><div class="plat-name">Sales Rabbit</div><div class="plat-pts pts-sr">0</div><div class="plat-max">/ 25</div></div>
+        <div class="plat-bar"><div class="plat-name">CompanyCam</div><div class="plat-pts pts-cc">0</div><div class="plat-max">/ 15</div></div>
+        <div class="plat-bar"><div class="plat-name">Email</div><div class="plat-pts pts-em">0</div><div class="plat-max">/ 20</div></div>
+      </div>
+      <div class="activity-detail"><h4>Activity Breakdown</h4>
+      <div class="act-item">
+        <span class="act-label">Contracts Signed</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Estimates Submitted</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Appointments Set</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Doors Knocked (GPS Verified)</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Not At Location Flags</span>
+        <span class="act-val val-good">✓ None</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Pipeline Violations (72hr)</span>
+        <span class="act-val val-good">✓ All clear</span>
+      </div></div>
+      
+      <div class="coach-note">
+        <h4>🎯 Coach's Note</h4>
+        <p class="coach-text">This is an F-grade day. Immediate check-in with Rep 109 is recommended before their next shift.</p>
+      </div>
+    </div>
+    <div class="rep-card fail">
+      <div class="card-header">
+        <div class="card-avatar av-blue">R1</div>
+        <div class="card-info">
+          <div class="card-name">Rep 110</div>
+          <div class="card-role">SALES REPRESENTATIVE  •  RANK #11</div>
+        </div>
+        <div class="card-score-block">
+          <div class="card-big-score score-fail">0</div>
+          <div class="card-grade-trend">
+            <span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;padding:3px 8px;border-radius:4px;font-size:12px;font-weight:900;">F</span>
+            <span style="color:#f1c40f;font-size:18px;">→</span>
+            <span style="font-size:11px;color:#666688;">— avg</span>
+          </div>
+        </div>
+      </div>
+      <div class="platform-bars">
+        <div class="plat-bar"><div class="plat-name">JobNimbus</div><div class="plat-pts pts-jn">0</div><div class="plat-max">/ 40</div></div>
+        <div class="plat-bar"><div class="plat-name">Sales Rabbit</div><div class="plat-pts pts-sr">0</div><div class="plat-max">/ 25</div></div>
+        <div class="plat-bar"><div class="plat-name">CompanyCam</div><div class="plat-pts pts-cc">0</div><div class="plat-max">/ 15</div></div>
+        <div class="plat-bar"><div class="plat-name">Email</div><div class="plat-pts pts-em">0</div><div class="plat-max">/ 20</div></div>
+      </div>
+      <div class="activity-detail"><h4>Activity Breakdown</h4>
+      <div class="act-item">
+        <span class="act-label">Contracts Signed</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Estimates Submitted</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Appointments Set</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Doors Knocked (GPS Verified)</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Not At Location Flags</span>
+        <span class="act-val val-good">✓ None</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Pipeline Violations (72hr)</span>
+        <span class="act-val val-good">✓ All clear</span>
+      </div></div>
+      
+      <div class="coach-note">
+        <h4>🎯 Coach's Note</h4>
+        <p class="coach-text">This is an F-grade day. Immediate check-in with Rep 110 is recommended before their next shift.</p>
+      </div>
+    </div>
+    <div class="rep-card fail">
+      <div class="card-header">
+        <div class="card-avatar av-blue">R1</div>
+        <div class="card-info">
+          <div class="card-name">Rep 111</div>
+          <div class="card-role">SALES REPRESENTATIVE  •  RANK #12</div>
+        </div>
+        <div class="card-score-block">
+          <div class="card-big-score score-fail">0</div>
+          <div class="card-grade-trend">
+            <span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;padding:3px 8px;border-radius:4px;font-size:12px;font-weight:900;">F</span>
+            <span style="color:#f1c40f;font-size:18px;">→</span>
+            <span style="font-size:11px;color:#666688;">— avg</span>
+          </div>
+        </div>
+      </div>
+      <div class="platform-bars">
+        <div class="plat-bar"><div class="plat-name">JobNimbus</div><div class="plat-pts pts-jn">0</div><div class="plat-max">/ 40</div></div>
+        <div class="plat-bar"><div class="plat-name">Sales Rabbit</div><div class="plat-pts pts-sr">0</div><div class="plat-max">/ 25</div></div>
+        <div class="plat-bar"><div class="plat-name">CompanyCam</div><div class="plat-pts pts-cc">0</div><div class="plat-max">/ 15</div></div>
+        <div class="plat-bar"><div class="plat-name">Email</div><div class="plat-pts pts-em">0</div><div class="plat-max">/ 20</div></div>
+      </div>
+      <div class="activity-detail"><h4>Activity Breakdown</h4>
+      <div class="act-item">
+        <span class="act-label">Contracts Signed</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Estimates Submitted</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Appointments Set</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Doors Knocked (GPS Verified)</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Not At Location Flags</span>
+        <span class="act-val val-good">✓ None</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Pipeline Violations (72hr)</span>
+        <span class="act-val val-good">✓ All clear</span>
+      </div></div>
+      
+      <div class="coach-note">
+        <h4>🎯 Coach's Note</h4>
+        <p class="coach-text">This is an F-grade day. Immediate check-in with Rep 111 is recommended before their next shift.</p>
+      </div>
+    </div>
+    <div class="rep-card fail">
+      <div class="card-header">
+        <div class="card-avatar av-blue">R1</div>
+        <div class="card-info">
+          <div class="card-name">Rep 112</div>
+          <div class="card-role">SALES REPRESENTATIVE  •  RANK #13</div>
+        </div>
+        <div class="card-score-block">
+          <div class="card-big-score score-fail">0</div>
+          <div class="card-grade-trend">
+            <span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;padding:3px 8px;border-radius:4px;font-size:12px;font-weight:900;">F</span>
+            <span style="color:#f1c40f;font-size:18px;">→</span>
+            <span style="font-size:11px;color:#666688;">— avg</span>
+          </div>
+        </div>
+      </div>
+      <div class="platform-bars">
+        <div class="plat-bar"><div class="plat-name">JobNimbus</div><div class="plat-pts pts-jn">0</div><div class="plat-max">/ 40</div></div>
+        <div class="plat-bar"><div class="plat-name">Sales Rabbit</div><div class="plat-pts pts-sr">0</div><div class="plat-max">/ 25</div></div>
+        <div class="plat-bar"><div class="plat-name">CompanyCam</div><div class="plat-pts pts-cc">0</div><div class="plat-max">/ 15</div></div>
+        <div class="plat-bar"><div class="plat-name">Email</div><div class="plat-pts pts-em">0</div><div class="plat-max">/ 20</div></div>
+      </div>
+      <div class="activity-detail"><h4>Activity Breakdown</h4>
+      <div class="act-item">
+        <span class="act-label">Contracts Signed</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Estimates Submitted</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Appointments Set</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Doors Knocked (GPS Verified)</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Not At Location Flags</span>
+        <span class="act-val val-good">✓ None</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Pipeline Violations (72hr)</span>
+        <span class="act-val val-good">✓ All clear</span>
+      </div></div>
+      
+      <div class="coach-note">
+        <h4>🎯 Coach's Note</h4>
+        <p class="coach-text">This is an F-grade day. Immediate check-in with Rep 112 is recommended before their next shift.</p>
+      </div>
+    </div>
+    <div class="rep-card fail">
+      <div class="card-header">
+        <div class="card-avatar av-blue">R1</div>
+        <div class="card-info">
+          <div class="card-name">Rep 113</div>
+          <div class="card-role">SALES REPRESENTATIVE  •  RANK #14</div>
+        </div>
+        <div class="card-score-block">
+          <div class="card-big-score score-fail">0</div>
+          <div class="card-grade-trend">
+            <span class="grade-badge" style="background:#3a1a1a;color:#e94560;border:1px solid #e94560;padding:3px 8px;border-radius:4px;font-size:12px;font-weight:900;">F</span>
+            <span style="color:#f1c40f;font-size:18px;">→</span>
+            <span style="font-size:11px;color:#666688;">— avg</span>
+          </div>
+        </div>
+      </div>
+      <div class="platform-bars">
+        <div class="plat-bar"><div class="plat-name">JobNimbus</div><div class="plat-pts pts-jn">0</div><div class="plat-max">/ 40</div></div>
+        <div class="plat-bar"><div class="plat-name">Sales Rabbit</div><div class="plat-pts pts-sr">0</div><div class="plat-max">/ 25</div></div>
+        <div class="plat-bar"><div class="plat-name">CompanyCam</div><div class="plat-pts pts-cc">0</div><div class="plat-max">/ 15</div></div>
+        <div class="plat-bar"><div class="plat-name">Email</div><div class="plat-pts pts-em">0</div><div class="plat-max">/ 20</div></div>
+      </div>
+      <div class="activity-detail"><h4>Activity Breakdown</h4>
+      <div class="act-item">
+        <span class="act-label">Contracts Signed</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Estimates Submitted</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Appointments Set</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Doors Knocked (GPS Verified)</span>
+        <span class="act-val val-bad">0</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Not At Location Flags</span>
+        <span class="act-val val-good">✓ None</span>
+      </div>
+      <div class="act-item">
+        <span class="act-label">Pipeline Violations (72hr)</span>
+        <span class="act-val val-good">✓ All clear</span>
+      </div></div>
+      
+      <div class="coach-note">
+        <h4>🎯 Coach's Note</h4>
+        <p class="coach-text">This is an F-grade day. Immediate check-in with Rep 113 is recommended before their next shift.</p>
+      </div>
+    </div></div>
+
+  <div class="section-header" style="margin-top:16px;"><h2>🚨 Flags &amp; Alerts</h2></div>
+  <div class="flags-section"></div>
+
+  <div class="section-header" style="margin-top:4px;"><h2>📋 Owner Action Items</h2></div>
+  <div class="actions-section"><div class="action-item"><div class="action-priority"><span class="priority-badge p-urgent">URGENT</span></div><div class="action-text"><strong style="color:#fff;">Rep 1</strong> — Score: 0. This is an F-grade day. Immediate check-in with Rep 1 is recommended before their next shift.</div></div><div class="action-item"><div class="action-priority"><span class="priority-badge p-urgent">URGENT</span></div><div class="action-text"><strong style="color:#fff;">Rep 16</strong> — Score: 0. This is an F-grade day. Immediate check-in with Rep 16 is recommended before their next shift.</div></div><div class="action-item"><div class="action-priority"><span class="priority-badge p-urgent">URGENT</span></div><div class="action-text"><strong style="color:#fff;">Rep 94</strong> — Score: 0. This is an F-grade day. Immediate check-in with Rep 94 is recommended before their next shift.</div></div><div class="action-item"><div class="action-priority"><span class="priority-badge p-urgent">URGENT</span></div><div class="action-text"><strong style="color:#fff;">Rep 99</strong> — Score: 0. This is an F-grade day. Immediate check-in with Rep 99 is recommended before their next shift.</div></div><div class="action-item"><div class="action-priority"><span class="priority-badge p-urgent">URGENT</span></div><div class="action-text"><strong style="color:#fff;">Rep 103</strong> — Score: 0. This is an F-grade day. Immediate check-in with Rep 103 is recommended before their next shift.</div></div><div class="action-item"><div class="action-priority"><span class="priority-badge p-urgent">URGENT</span></div><div class="action-text"><strong style="color:#fff;">Rep 104</strong> — Score: 0. This is an F-grade day. Immediate check-in with Rep 104 is recommended before their next shift.</div></div><div class="action-item"><div class="action-priority"><span class="priority-badge p-urgent">URGENT</span></div><div class="action-text"><strong style="color:#fff;">Rep 105</strong> — Score: 0. This is an F-grade day. Immediate check-in with Rep 105 is recommended before their next shift.</div></div><div class="action-item"><div class="action-priority"><span class="priority-badge p-urgent">URGENT</span></div><div class="action-text"><strong style="color:#fff;">Rep 106</strong> — Score: 0. This is an F-grade day. Immediate check-in with Rep 106 is recommended before their next shift.</div></div><div class="action-item"><div class="action-priority"><span class="priority-badge p-urgent">URGENT</span></div><div class="action-text"><strong style="color:#fff;">Rep 108</strong> — Score: 0. This is an F-grade day. Immediate check-in with Rep 108 is recommended before their next shift.</div></div><div class="action-item"><div class="action-priority"><span class="priority-badge p-urgent">URGENT</span></div><div class="action-text"><strong style="color:#fff;">Rep 109</strong> — Score: 0. This is an F-grade day. Immediate check-in with Rep 109 is recommended before their next shift.</div></div><div class="action-item"><div class="action-priority"><span class="priority-badge p-urgent">URGENT</span></div><div class="action-text"><strong style="color:#fff;">Rep 110</strong> — Score: 0. This is an F-grade day. Immediate check-in with Rep 110 is recommended before their next shift.</div></div><div class="action-item"><div class="action-priority"><span class="priority-badge p-urgent">URGENT</span></div><div class="action-text"><strong style="color:#fff;">Rep 111</strong> — Score: 0. This is an F-grade day. Immediate check-in with Rep 111 is recommended before their next shift.</div></div><div class="action-item"><div class="action-priority"><span class="priority-badge p-urgent">URGENT</span></div><div class="action-text"><strong style="color:#fff;">Rep 112</strong> — Score: 0. This is an F-grade day. Immediate check-in with Rep 112 is recommended before their next shift.</div></div><div class="action-item"><div class="action-priority"><span class="priority-badge p-urgent">URGENT</span></div><div class="action-text"><strong style="color:#fff;">Rep 113</strong> — Score: 0. This is an F-grade day. Immediate check-in with Rep 113 is recommended before their next shift.</div></div></div>
+
+  
+
+  <div class="section-header" style="margin-top:4px;"><h2>🤝 Split Jobs Summary</h2></div>
+  <div class="split-section">
+    <div style="display:flex;gap:12px;padding:4px 0 8px;border-bottom:1px solid #2a2a4a;">
+      <div style="flex:2;font-size:10px;color:#444466;text-transform:uppercase;letter-spacing:1px;">JOB</div>
+      <div style="flex:2;font-size:10px;color:#444466;text-transform:uppercase;letter-spacing:1px;">REPS</div>
+      <div style="flex:1;font-size:10px;color:#444466;text-transform:uppercase;letter-spacing:1px;text-align:right;">SPLIT</div>
+    </div>
+    <div style="padding:12px 0;color:#444466;font-size:13px;">No split jobs today.</div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-brand">OVERWATCH  •  COX ROOFING &amp; RESTORATION  •  CONFIDENTIAL</div>
+    <div class="footer-time">Generated 8:00 AM EST  •  Data through 11:59 PM Monday, May 11, 2026</div>
+  </div>
+</div>
+</body>
+</html>

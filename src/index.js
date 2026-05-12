@@ -64,7 +64,7 @@ async function fetchJN(dateRange) {
 
   // Also try tasks endpoint separately
   const tasksRes = await apiGet(CONFIG.jobnimbus.baseUrl,
-    `${CONFIG.jobnimbus.basePath}/tasks?date_start=${dateRange.start}&date_end=${dateRange.end}&limit=1000`, h);
+    `${CONFIG.jobnimbus.basePath}/tasks?date_start=${dateRange.start}&date_end=${dateRange.end}&limit=1000&sort=-date_created`, h);
   console.log(`JN Tasks: status=${tasksRes.status}, count=${tasksRes.body?.results?.length ?? 0}`);
 
   // Also pull contacts created yesterday — captures new leads
@@ -384,6 +384,9 @@ async function main() {
     });
 
     console.log(`Reps to score: ${reps.map(r=>`${r.firstName} ${r.lastName}`).join(', ')}`);
+  // Show what created_by_name values actually exist in tasks
+  const taskNames = [...new Set(jnData.activities.map(a => a.created_by_name || a.created_by || 'unknown'))];
+  console.log(`Unique task creators (${taskNames.length}):`, taskNames.slice(0,20).join(', '));
 
     const debugInfo = [
       `JN Activities total: ${jnData.activities.length}`,

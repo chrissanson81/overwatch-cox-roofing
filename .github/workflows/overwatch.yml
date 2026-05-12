@@ -2,17 +2,12 @@ name: OVERWATCH — Daily Report
 
 on:
   schedule:
-    # Runs at 3:00 AM UTC = 11:00 PM EST
     - cron: '0 3 * * *'
-  
-  # Manual trigger for testing
   workflow_dispatch:
 
 jobs:
   run-overwatch:
     runs-on: ubuntu-latest
-    
-    # Permission to write files back to the repo
     permissions:
       contents: write
 
@@ -39,6 +34,7 @@ jobs:
         run: |
           git config --global user.name "Overwatch Bot"
           git config --global user.email "overwatch@coxroofing.local"
+          git pull --rebase origin main
           git add reports/
           git diff --staged --quiet || git commit -m "OVERWATCH Report — $(date +'%Y-%m-%d')"
           git push

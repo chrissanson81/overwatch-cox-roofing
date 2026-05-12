@@ -110,7 +110,13 @@ function scoreJN(activities, jobs, repName, dateRange) {
   const notesPerJob = {}, flags = [], detail = [];
   const BIZ_72 = 72 * 3600;
 
-  for (const act of activities) {
+  // Filter to yesterday's activities only
+  const todaysActivities = activities.filter(a => {
+    const created = a.date_created || a.date_updated || 0;
+    return created >= dateRange.start && created <= dateRange.end;
+  });
+
+  for (const act of todaysActivities) {
     const type = (act.record_type_name || act.type || '').toLowerCase().trim();
     const note = (act.note || act.description || '').toLowerCase();
     const jobId = act.job_id || act.jnid || 'general';

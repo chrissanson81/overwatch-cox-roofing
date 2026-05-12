@@ -396,6 +396,8 @@ async function main() {
     const yesterdayTasks = jnData.activities.filter(a => { const c = a.date_created||0; return c >= dateRange.start && c <= dateRange.end; });
   console.log(`Tasks matching yesterday's date range: ${yesterdayTasks.length}`);
   console.log(`Yesterday task creators:`, yesterdayTasks.map(a => a.created_by_name).join(', '));
+  console.log(`Yesterday task types:`, [...new Set(yesterdayTasks.map(a => a.record_type_name || a.type || 'unknown'))].join(', '));
+  console.log(`Paul Gemmer tasks:`, yesterdayTasks.filter(a => a.created_by_name === 'Paul Gemmer').map(a => `${a.record_type_name||a.type}: ${(a.note||'').slice(0,50)}`).join(' | '));
   console.log(`Rep names we are matching against:`, reps.map(r => `${r.firstName} ${r.lastName}`).join(', '));
 
     const debugInfo = [

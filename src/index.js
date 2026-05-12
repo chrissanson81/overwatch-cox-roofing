@@ -120,11 +120,14 @@ async function fetchJobNimbusData(dateRange) {
     'Authorization': `Bearer ${CONFIG.jobnimbus.apiKey}`,
     'Content-Type': 'application/json'
   };
-
-  // Fetch activities
+  const filter = encodeURIComponent(JSON.stringify({
+    must: [
+      { range: { date_created: { gte: dateRange.start, lte: dateRange.end } } }
+    ]
+  }));
   const activitiesRes = await apiGet(
     CONFIG.jobnimbus.baseUrl,
-    `${CONFIG.jobnimbus.basePath}/activities?date_start=${dateRange.start}&date_end=${dateRange.end}&limit=500`,
+    `${CONFIG.jobnimbus.basePath}/activities?filter=${filter}&limit=500`,
     headers
   );
 
@@ -764,7 +767,8 @@ async function main() {
     console.log(`Sales Rabbit: ${srData.leads.length} leads, ${srData.users.length} users`);
 
     // 2. Build rep list from Sales Rabbit users (source of truth for active reps)
-    const reps = srData.users.filter(u => u.role === 'user' || u.role === 'rep' || !u.is_admin);
+    const reps = srData.users.filter(u => !u.is_admin);
+console.log('Reps found:', reps.map(r => `${r.first_name} ${r.last_name} (${r.id})`));
 
     if (reps.length === 0) {
       console.log('No reps found — check Sales Rabbit API connection');

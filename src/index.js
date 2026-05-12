@@ -338,8 +338,9 @@ function scoreSalesRabbit(repLeads, repUser) {
   const flags = [];
   const detail = [];
 
+  for (const lead of repLeads) {
   // GPS check-in not available in leads endpoint — default to AT_LOCATION
-    // until Sales Rabbit check-in API is confirmed
+  // until Sales Rabbit check-in API is confirmed
     const gpsStatus = 'AT_LOCATION';
     const outcome = (lead.status || lead.status_name || lead.disposition || '').toLowerCase();
 

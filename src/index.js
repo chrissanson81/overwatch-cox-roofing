@@ -120,14 +120,9 @@ async function fetchJobNimbusData(dateRange) {
     'Authorization': `Bearer ${CONFIG.jobnimbus.apiKey}`,
     'Content-Type': 'application/json'
   };
-  const filter = encodeURIComponent(JSON.stringify({
-    must: [
-      { range: { date_created: { gte: dateRange.start, lte: dateRange.end } } }
-    ]
-  }));
   const activitiesRes = await apiGet(
     CONFIG.jobnimbus.baseUrl,
-    `${CONFIG.jobnimbus.basePath}/activities?filter=${filter}&limit=500`,
+    `${CONFIG.jobnimbus.basePath}/activities?limit=500`,
     headers
   );
 
@@ -768,7 +763,8 @@ async function main() {
 
     // 2. Build rep list from Sales Rabbit users (source of truth for active reps)
     const reps = srData.users.filter(u => !u.is_admin);
-console.log('Reps found:', reps.map(r => `${r.first_name} ${r.last_name} (${r.id})`));
+console.log('First rep raw object:', JSON.stringify(reps[0], null, 2));
+console.log('Total reps:', reps.length);
 
     if (reps.length === 0) {
       console.log('No reps found — check Sales Rabbit API connection');
@@ -778,7 +774,7 @@ console.log('Reps found:', reps.map(r => `${r.first_name} ${r.last_name} (${r.id
     // 3. Score each rep
     const repResults = reps.map(rep => {
       const repId = rep.id || rep.user_id;
-      const repName = `${rep.first_name || ''} ${rep.last_name || ''}`.trim() || rep.name || `Rep ${repId}`;
+      const repName = `${rep.firstName || rep.first_name || ''} ${rep.lastName || rep.last_name || ''}`.trim() || rep.name || rep.displayName || `Rep ${repId}`;
 
       // Filter activities for this rep
       const repJNActivities = jnData.activities.filter(a =>

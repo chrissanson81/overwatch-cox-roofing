@@ -1,13 +1,12 @@
 // ─────────────────────────────────────────────────────────────
 //  OVERWATCH — Cox Roofing & Restoration
 //  Daily Performance Intelligence System
-//  Runs nightly via GitHub Actions, delivers 8am report
+//  Runs nightly via GitHub Actions, saves report to /reports
 // ─────────────────────────────────────────────────────────────
 
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
-
 
 // ── CONFIG ────────────────────────────────────────────────────
 const CONFIG = {
@@ -19,7 +18,7 @@ const CONFIG = {
   salesRabbit: {
     apiKey: process.env.SALESRABBIT_API_KEY,
     baseUrl: 'api.salesrabbit.com'
-  },
+  }
 };
 
 // ── SCORING WEIGHTS ────────────────────────────────────────────
@@ -30,20 +29,20 @@ const WEIGHTS = {
     appointmentSelfGen: 5,
     appointmentCompanyLead: 2,
     leadCreated: 3,
-    stageMove: 1,        // max 5
-    noteCap: 5,          // max notes per job per day that count
+    stageMove: 1,
+    noteCap: 5,
     noteValue: 0.5,
     taskValue: 0.5,
     pipelineViolationPenalty: -5,
     platformCeiling: 40
   },
   salesRabbit: {
-    pinAtLocation: 0.15,       // max 15 pts (100 pins)
-    pinNearLocation: 0.06,     // 40% of pin value
-    pinNotAtLocation: 0,       // 0 pts + flag
-    outcomeAppointment: 3,     // bonus per confirmed AT pin
-    outcomeInterested: 1,      // bonus
-    outcomeNotHome: 0.25,      // up to 50 pins
+    pinAtLocation: 0.15,
+    pinNearLocation: 0.06,
+    pinNotAtLocation: 0,
+    outcomeAppointment: 3,
+    outcomeInterested: 1,
+    outcomeNotHome: 0.25,
     doorTargetFull: 100,
     platformCeiling: 25
   },
@@ -52,19 +51,19 @@ const WEIGHTS = {
     checklistCompleted: 4,
     reportGenerated: 2,
     sharedLink: 1,
-    photoValue: 0.1,           // capped at 20 photos/project/day
+    photoValue: 0.1,
     photoCapPerProject: 20,
-    zeroPhosPenalty: -5,       // if visited job with 0 photos
+    zeroPhotosPenalty: -5,
     platformCeiling: 15
   },
-  autoEliteThreshold: 2,       // contracts needed for auto-elite
+  autoEliteThreshold: 2,
   autoEliteScore: 95,
-  targetScore: 80              // B grade daily target
+  targetScore: 80
 };
 
 // ── GPS DISTANCE HELPER ────────────────────────────────────────
 function haversineDistance(lat1, lon1, lat2, lon2) {
-  const R = 3959; // miles
+  const R = 3959;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -76,7 +75,7 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
 function getGPSStatus(pinLat, pinLon, repLat, repLon) {
   if (!repLat || !repLon) return 'NOT_AT_LOCATION';
   const dist = haversineDistance(pinLat, pinLon, repLat, repLon);
-  if (dist <= 0.019) return 'AT_LOCATION';       // ~100 feet
+  if (dist <= 0.019) return 'AT_LOCATION';
   if (dist <= 0.25)  return 'NEAR_LOCATION';
   return 'NOT_AT_LOCATION';
 }
@@ -120,20 +119,19 @@ async function fetchJobNimbusData(dateRange) {
     'Authorization': `Bearer ${CONFIG.jobnimbus.apiKey}`,
     'Content-Type': 'application/json'
   };
+
   const activitiesRes = await apiGet(
     CONFIG.jobnimbus.baseUrl,
     `${CONFIG.jobnimbus.basePath}/activities?limit=1000&sort=-date_created`,
     headers
   );
 
-  // Fetch jobs for pipeline check
   const jobsRes = await apiGet(
     CONFIG.jobnimbus.baseUrl,
     `${CONFIG.jobnimbus.basePath}/jobs?limit=500`,
     headers
   );
 
-  // Fetch contacts created yesterday
   const contactsRes = await apiGet(
     CONFIG.jobnimbus.baseUrl,
     `${CONFIG.jobnimbus.basePath}/contacts?date_start=${dateRange.start}&date_end=${dateRange.end}&limit=500`,
@@ -260,7 +258,6 @@ function scoreJobNimbus(repActivities, allJobs, repName, dateRange) {
     // ── NOTE LOGGED ──────────────────────────────────────────
     } else if (
       type === 'note' ||
-      type === 'contact modified' ||
       type === 'web login' ||
       type.includes('note') ||
       type.includes('comment')
@@ -329,30 +326,6 @@ function scoreJobNimbus(repActivities, allJobs, repName, dateRange) {
   return { pts, contracts, estimates, appointments, leads, stageMoves, notes, tasks, pipelineViolations, staleJobs, flags, detail };
 }
 
-  // Pipeline 72-hour violation check
-  const repJobs = allJobs.filter(j => j.sales_rep_id === repId || j.assigned_to === repId);
-  let pipelineViolations = 0;
-  const staleJobs = [];
-
-  for (const job of repJobs) {
-    if (!job.last_activity_date && !job.date_updated) continue;
-    const lastActivity = job.last_activity_date || job.date_updated;
-    const ageSeconds = (dateRange.end) - lastActivity;
-    if (ageSeconds > BIZ_HOURS_72) {
-      pipelineViolations++;
-      pts += WEIGHTS.jobnimbus.pipelineViolationPenalty;
-      staleJobs.push({ name: job.name || job.display_name || 'Unnamed Job', hoursStale: Math.floor(ageSeconds / 3600) });
-      flags.push({ type: 'pipeline', text: `Job stale ${Math.floor(ageSeconds/3600)}hrs: "${job.name || 'Unnamed'}"`, severity: 'red' });
-    }
-  }
-
-  // Cap at ceiling
-  pts = Math.min(pts, WEIGHTS.jobnimbus.platformCeiling);
-  pts = Math.max(pts, 0);
-
-  return { pts, contracts, estimates, appointments, leads, stageMoves, tasks, pipelineViolations, staleJobs, flags, detail };
-}
-
 // ── SCORE SALES RABBIT ─────────────────────────────────────────
 function scoreSalesRabbit(repLeads, repUser) {
   let pts = 0;
@@ -364,13 +337,13 @@ function scoreSalesRabbit(repLeads, repUser) {
   const detail = [];
 
   for (const lead of repLeads) {
-    const pinLat = parseFloat(lead.address_latitude || lead.latitude || 0);
-    const pinLon = parseFloat(lead.address_longitude || lead.longitude || 0);
-    const repLat = parseFloat(lead.gps_latitude || lead.user_latitude || 0);
-    const repLon = parseFloat(lead.gps_longitude || lead.user_longitude || 0);
+    const pinLat = parseFloat(lead.latitude || 0);
+    const pinLon = parseFloat(lead.longitude || 0);
+    const repLat = parseFloat(lead.gpsLatitude || lead.checkinLatitude || lead.latitude || 0);
+    const repLon = parseFloat(lead.gpsLongitude || lead.checkinLongitude || lead.longitude || 0);
 
     const gpsStatus = getGPSStatus(pinLat, pinLon, repLat, repLon);
-    const outcome = (lead.status_name || lead.lead_status || lead.disposition || '').toLowerCase();
+    const outcome = (lead.status || lead.status_name || lead.disposition || '').toLowerCase();
 
     if (gpsStatus === 'AT_LOCATION') {
       atLocation++;
@@ -388,18 +361,14 @@ function scoreSalesRabbit(repLeads, repUser) {
       pts += WEIGHTS.salesRabbit.pinNearLocation;
     } else {
       notAtLocation++;
-      flags.push({ type: 'gps', text: `Pin NOT at location: ${lead.address_1 || 'Unknown address'}`, severity: 'red' });
+      flags.push({ type: 'gps', text: `Pin NOT at location: ${lead.street1 || lead.address_1 || 'Unknown address'}`, severity: 'red' });
     }
   }
 
-  const totalPins = atLocation + nearLocation + notAtLocation;
-  detail.push({ label: 'Doors Knocked (GPS Verified)', value: `${atLocation} confirmed ✓`, good: atLocation >= 80 });
-  detail.push({ label: 'Near Location Pins', value: `${nearLocation}`, good: true });
-  if (notAtLocation > 0) {
-    detail.push({ label: 'NOT At Location Flags', value: `🚫 ${notAtLocation} flagged`, good: false });
-  }
+  detail.push({ label: 'Doors Knocked (GPS Verified)', value: `${atLocation} confirmed`, good: atLocation >= 80 });
+  if (nearLocation > 0) detail.push({ label: 'Near Location Pins', value: `${nearLocation}`, good: true });
+  if (notAtLocation > 0) detail.push({ label: 'NOT At Location Flags', value: `🚫 ${notAtLocation} flagged`, good: false });
 
-  // Flag if 100 doors but zero appointments/estimates
   if (atLocation >= 100 && appointmentsFromDoor === 0) {
     flags.push({ type: 'canvassing', text: '100+ doors knocked with zero appointments set — volume without outcome', severity: 'yellow' });
   }
@@ -407,27 +376,35 @@ function scoreSalesRabbit(repLeads, repUser) {
   pts = Math.min(pts, WEIGHTS.salesRabbit.platformCeiling);
   pts = Math.max(pts, 0);
 
-  return { pts, atLocation, nearLocation, notAtLocation, appointmentsFromDoor, totalPins, flags, detail };
+  return { pts, atLocation, nearLocation, notAtLocation, appointmentsFromDoor, totalPins: atLocation + nearLocation + notAtLocation, flags, detail };
 }
 
 // ── SPLIT JOB CREDIT ───────────────────────────────────────────
 function resolveSplitCredit(job, allActivities) {
-  const salesRepId = job.sales_rep_id;
-  const assigneeId = job.assigned_to;
-  if (!salesRepId || !assigneeId || salesRepId === assigneeId) return null;
+  const salesRepName = job.sales_rep_name;
+  const ownerNames = (job.owners || []).map(o => o.name).filter(Boolean);
+  if (!salesRepName || ownerNames.length <= 1) return null;
 
-  const jobActivities = allActivities.filter(a => a.job_id === job.jnid || a.related_id === job.jnid);
-  const repCount = jobActivities.filter(a => a.created_by === salesRepId).length;
-  const assigneeCount = jobActivities.filter(a => a.created_by === assigneeId).length;
+  const assigneeName = ownerNames.find(n => n !== salesRepName);
+  if (!assigneeName) return null;
+
+  const jobActivities = allActivities.filter(a =>
+    a.job_id === job.jnid || (a.related || '').includes(job.jnid)
+  );
+  const repCount = jobActivities.filter(a =>
+    (a.created_by_name || '').toLowerCase() === salesRepName.toLowerCase()
+  ).length;
+  const assigneeCount = jobActivities.filter(a =>
+    (a.created_by_name || '').toLowerCase() === assigneeName.toLowerCase()
+  ).length;
   const total = repCount + assigneeCount;
-  if (total === 0) return { repPct: 50, assigneePct: 50 };
 
   return {
-    repPct: Math.round((repCount / total) * 100),
-    assigneePct: Math.round((assigneeCount / total) * 100),
-    repId: salesRepId,
-    assigneeId,
-    jobName: job.name || job.display_name || 'Unnamed Job'
+    repPct: total === 0 ? 50 : Math.round((repCount / total) * 100),
+    assigneePct: total === 0 ? 50 : Math.round((assigneeCount / total) * 100),
+    repName: salesRepName,
+    assigneeName,
+    jobName: job.name || 'Unnamed Job'
   };
 }
 
@@ -485,7 +462,7 @@ function generateCoachNote(rep, jnScore, srScore, emailScore, ccScore, flags) {
 // ── BUILD HTML REPORT ──────────────────────────────────────────
 function buildHTMLReport(repResults, dateLabel, splitJobs) {
   const sorted = [...repResults].sort((a, b) => b.totalScore - a.totalScore);
-  const teamAvg = Math.round(sorted.reduce((s, r) => s + r.totalScore, 0) / sorted.length);
+  const teamAvg = sorted.length > 0 ? Math.round(sorted.reduce((s, r) => s + r.totalScore, 0) / sorted.length) : 0;
   const topScore = sorted[0]?.totalScore || 0;
   const eliteCount = sorted.filter(r => r.totalScore >= 90).length;
   const onTargetCount = sorted.filter(r => r.totalScore >= 80 && r.totalScore < 90).length;
@@ -496,14 +473,12 @@ function buildHTMLReport(repResults, dateLabel, splitJobs) {
   const pipelineFlags = allFlags.filter(f => f.type === 'pipeline');
   const conductFlags = allFlags.filter(f => f.type === 'conduct');
 
-  // Leaderboard rows
   const lbRows = sorted.map((rep, i) => {
     const grade = getGrade(rep.totalScore);
     const trend = getTrendArrow(rep.totalScore, rep.sevenDayAvg || rep.totalScore);
     const rankClass = i === 0 ? 'gold-row' : i === 1 ? 'silver-row' : i === 2 ? 'bronze-row' : rep.totalScore < 60 ? 'fail-row' : 'normal-row';
     const rankIcon = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}`;
     const rankColor = i === 0 ? '#f1c40f' : i === 1 ? '#bdc3c7' : i === 2 ? '#b46421' : rep.totalScore < 60 ? '#e94560' : '#6666aa';
-
     return `
     <div class="lb-row ${rankClass}">
       <div class="lb-rank" style="color:${rankColor};">${rankIcon}</div>
@@ -515,7 +490,6 @@ function buildHTMLReport(repResults, dateLabel, splitJobs) {
     </div>`;
   }).join('');
 
-  // Rep cards
   const repCards = sorted.map(rep => {
     const grade = getGrade(rep.totalScore);
     const trend = getTrendArrow(rep.totalScore, rep.sevenDayAvg || rep.totalScore);
@@ -572,7 +546,6 @@ function buildHTMLReport(repResults, dateLabel, splitJobs) {
     </div>`;
   }).join('');
 
-  // Flags section
   const gpsFlagsHtml = gpsFlags.length ? `
     <div class="flag-card">
       <h4>🚫 GPS Violations — Not At Location</h4>
@@ -585,7 +558,6 @@ function buildHTMLReport(repResults, dateLabel, splitJobs) {
       ${pipelineFlags.map(f => `<div class="flag-row"><span class="flag-icon">⚠️</span><span class="flag-text yellow">${f.repName} — ${f.text}</span></div>`).join('')}
     </div>` : '';
 
-  // Owner action items
   const urgentReps = sorted.filter(r => r.totalScore < 60);
   const watchReps = sorted.filter(r => r.totalScore >= 60 && r.totalScore < 70);
   const eliteReps = sorted.filter(r => r.totalScore >= 90);
@@ -596,12 +568,10 @@ function buildHTMLReport(repResults, dateLabel, splitJobs) {
     ...eliteReps.map(r => `<div class="action-item"><div class="action-priority"><span class="priority-badge p-good">RECOGNIZE</span></div><div class="action-text"><strong style="color:#fff;">${r.name}</strong> — Score: ${r.totalScore}. Elite performance — recognize publicly in team meeting.</div></div>`),
   ].join('') || '<div class="action-item"><div class="action-text" style="color:#6666aa;">No urgent actions today — team is performing within acceptable range.</div></div>';
 
-  // Split jobs
   const splitJobsHtml = splitJobs.length ? splitJobs.map(s =>
     `<div class="split-row"><div class="split-job">${s.jobName}</div><div class="split-reps">${s.repName} / ${s.assigneeName}</div><div class="split-pct">${s.repPct}% / ${s.assigneePct}%</div></div>`
   ).join('') : '<div style="padding:12px 0;color:#444466;font-size:13px;">No split jobs today.</div>';
 
-  // Conduct section
   const conductHtml = conductFlags.length ? `
   <div class="section-header" style="margin-top:4px;border-left-color:#e94560;">
     <h2 style="color:#e94560;">🚨 CONDUCT VIOLATIONS — REQUIRES OWNER REVIEW</h2>
@@ -619,7 +589,6 @@ function buildHTMLReport(repResults, dateLabel, splitJobs) {
     </div>
   </div>` : '';
 
-  // Read the CSS from the mock file and embed it — use same styles
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -740,7 +709,6 @@ body { background:#0d0d1a; font-family:Arial,sans-serif; color:#e0e0e0; }
       </div>
     </div>
   </div>
-
   <div class="snapshot">
     <div class="snap-item"><div class="snap-val">${sorted.length}</div><div class="snap-label">Reps Active</div></div>
     <div class="snap-item"><div class="snap-val gold">${teamAvg}</div><div class="snap-label">Team Avg Score</div></div>
@@ -749,7 +717,6 @@ body { background:#0d0d1a; font-family:Arial,sans-serif; color:#e0e0e0; }
     <div class="snap-item"><div class="snap-val">${onTargetCount}</div><div class="snap-label">On Target (B)</div></div>
     <div class="snap-item"><div class="snap-val red">${failCount}</div><div class="snap-label">Failing (F)</div></div>
   </div>
-
   <div class="section-header"><h2>📊 Daily Leaderboard — ${dateLabel}</h2></div>
   <div class="leaderboard">
     <div style="display:flex;padding:6px 16px;gap:12px;margin-top:8px;">
@@ -762,18 +729,13 @@ body { background:#0d0d1a; font-family:Arial,sans-serif; color:#e0e0e0; }
     </div>
     ${lbRows}
   </div>
-
   <div class="section-header" style="margin-top:16px;"><h2>👤 Individual Rep Cards</h2></div>
   <div class="rep-cards">${repCards}</div>
-
   <div class="section-header" style="margin-top:16px;"><h2>🚨 Flags &amp; Alerts</h2></div>
   <div class="flags-section">${gpsFlagsHtml}${pipelineFlagsHtml}</div>
-
   <div class="section-header" style="margin-top:4px;"><h2>📋 Owner Action Items</h2></div>
   <div class="actions-section">${ownerActions}</div>
-
   ${conductHtml}
-
   <div class="section-header" style="margin-top:4px;"><h2>🤝 Split Jobs Summary</h2></div>
   <div class="split-section">
     <div style="display:flex;gap:12px;padding:4px 0 8px;border-bottom:1px solid #2a2a4a;">
@@ -783,7 +745,6 @@ body { background:#0d0d1a; font-family:Arial,sans-serif; color:#e0e0e0; }
     </div>
     ${splitJobsHtml}
   </div>
-
   <div class="footer">
     <div class="footer-brand">OVERWATCH  •  COX ROOFING &amp; RESTORATION  •  CONFIDENTIAL</div>
     <div class="footer-time">Generated 8:00 AM EST  •  Data through 11:59 PM ${dateLabel}</div>
@@ -795,21 +756,16 @@ body { background:#0d0d1a; font-family:Arial,sans-serif; color:#e0e0e0; }
 
 // ── SAVE REPORT TO FILE ────────────────────────────────────────
 async function saveReport(htmlContent, dateLabel) {
-
-  // Create reports directory if it doesn't exist
   const reportsDir = path.join(process.cwd(), 'reports');
   if (!fs.existsSync(reportsDir)) fs.mkdirSync(reportsDir, { recursive: true });
 
-  // Save dated report
   const dateSlug = new Date().toISOString().slice(0, 10);
   const reportPath = path.join(reportsDir, `overwatch-${dateSlug}.html`);
   fs.writeFileSync(reportPath, htmlContent);
 
-  // Also overwrite latest.html so there's always one stable URL to bookmark
   const latestPath = path.join(reportsDir, 'latest.html');
   fs.writeFileSync(latestPath, htmlContent);
 
-  // Write a simple index page listing all past reports
   const allReports = fs.readdirSync(reportsDir)
     .filter(f => f.startsWith('overwatch-') && f.endsWith('.html'))
     .sort()
@@ -831,7 +787,7 @@ async function saveReport(htmlContent, dateLabel) {
 </style>
 </head>
 <body>
-<h1>⬡ OVERWATCH</h1>
+<h1>OVERWATCH</h1>
 <p>Cox Roofing & Restoration — Daily Performance Reports</p>
 <a class="latest" href="latest.html">📊 Latest Report (Today) <span>VIEW →</span></a>
 ${allReports.map(f => {
@@ -843,10 +799,8 @@ ${allReports.map(f => {
 </html>`;
 
   fs.writeFileSync(path.join(reportsDir, 'index.html'), indexHtml);
-
   console.log(`Report saved: ${reportPath}`);
-  console.log(`Latest report: reports/latest.html`);
-  console.log(`Archive index: reports/index.html`);
+  console.log(`Latest: reports/latest.html`);
 }
 
 // ── MAIN ───────────────────────────────────────────────────────
@@ -856,64 +810,54 @@ async function main() {
   console.log(`Processing data for: ${dateRange.label}`);
 
   try {
-    // 1. Fetch data
     const [jnData, srData] = await Promise.all([
       fetchJobNimbusData(dateRange),
       fetchSalesRabbitData(dateRange)
     ]);
 
     console.log(`JobNimbus: ${jnData.activities.length} activities, ${jnData.jobs.length} jobs`);
-console.log('First JN activity raw:', JSON.stringify(jnData.activities[0], null, 2));
-console.log('First JN job raw:', JSON.stringify(jnData.jobs[0], null, 2));
-console.log('First SR lead raw:', JSON.stringify(srData.leads[0], null, 2));
-console.log('First rep ID:', reps[0]?.id, '| Type:', typeof reps[0]?.id);
     console.log(`Sales Rabbit: ${srData.leads.length} leads, ${srData.users.length} users`);
 
-    // 2. Build rep list from Sales Rabbit users (source of truth for active reps)
-    const reps = srData.users.filter(u => !u.is_admin);
-console.log('First rep raw object:', JSON.stringify(reps[0], null, 2));
-console.log('Total reps:', reps.length);
+    // Build rep list from Sales Rabbit users
+    const reps = srData.users.filter(u => !u.isAdmin && !u.is_admin);
+    console.log(`Reps: ${reps.map(r => `${r.firstName} ${r.lastName}`).join(', ')}`);
 
     if (reps.length === 0) {
       console.log('No reps found — check Sales Rabbit API connection');
-      // Still send a report noting the issue
     }
 
-    // 3. Score each rep
+    // Score each rep
     const repResults = reps.map(rep => {
-      const repId = rep.id || rep.user_id;
+      const repId = rep.id || rep.userId;
       const repName = `${rep.firstName || rep.first_name || ''} ${rep.lastName || rep.last_name || ''}`.trim() || rep.name || rep.displayName || `Rep ${repId}`;
 
-      // Filter activities for this rep
-      const repFullName = repName.toLowerCase();
+      // Match JN activities by rep name (JN uses created_by_name)
       const repJNActivities = jnData.activities.filter(a => {
         const createdBy = (a.created_by_name || a.created_by || '').toLowerCase().trim();
         return createdBy === repName.toLowerCase().trim();
       });
-      const repSRLeads = srData.leads.filter(l => l.user_id === repId || l.assigned_to === repId);
 
-      // Score platforms
+      // Match SR leads by userId
+      const repSRLeads = srData.leads.filter(l => String(l.userId) === String(repId));
+
+      console.log(`${repName}: ${repJNActivities.length} JN activities, ${repSRLeads.length} SR leads`);
+
       const jnScore = scoreJobNimbus(repJNActivities, jnData.jobs, repName, dateRange);
       const srScore = scoreSalesRabbit(repSRLeads, rep);
 
-      // CompanyCam and Email default to 0 until APIs are connected
       const ccPts = 0;
       const emailPts = 0;
 
-      // Total score
       let totalScore = jnScore.pts + srScore.pts + ccPts + emailPts;
 
-      // Auto-elite override
       if (jnScore.contracts >= WEIGHTS.autoEliteThreshold) {
         totalScore = WEIGHTS.autoEliteScore;
       }
 
       totalScore = Math.min(100, Math.max(0, Math.round(totalScore)));
 
-      // All flags combined
       const flags = [...jnScore.flags, ...srScore.flags];
 
-      // Coach's note
       const coachNote = generateCoachNote(
         { name: repName },
         jnScore, srScore, emailPts, ccPts, flags
@@ -929,22 +873,17 @@ console.log('Total reps:', reps.length);
         emailPts,
         flags,
         coachNote,
-        sevenDayAvg: null  // Will be populated once score history exists
+        sevenDayAvg: null
       };
     });
 
-    // 4. Resolve split jobs
+    // Resolve split jobs
     const splitJobs = [];
     for (const job of jnData.jobs) {
       const split = resolveSplitCredit(job, jnData.activities);
-      if (split) {
-        const repName = reps.find(r => r.id === split.repId)?.first_name || split.repId;
-        const assigneeName = reps.find(r => r.id === split.assigneeId)?.first_name || split.assigneeId;
-        splitJobs.push({ ...split, repName, assigneeName });
-      }
+      if (split) splitJobs.push(split);
     }
 
-    // 5. Build and save report
     const html = buildHTMLReport(repResults, dateRange.label, splitJobs);
     await saveReport(html, dateRange.label);
 

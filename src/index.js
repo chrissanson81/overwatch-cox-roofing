@@ -165,7 +165,7 @@ function scoreJN(activities, jobs, repName, dateRange) {
         staleJobs.push({ name: job.name || 'Unnamed', hoursStale: hrs });
         flags.push({ type: 'pipeline', text: `Job stale ${hrs}hrs: "${job.name || 'Unnamed'}"`, severity: 'yellow' });
       }
-      pts += WEIGHTS.jn.penalty;
+      // pts += WEIGHTS.jn.penalty; // Disabled — shown as flag only
     }
   }
 

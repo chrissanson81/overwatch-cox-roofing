@@ -5,7 +5,9 @@
 // ─────────────────────────────────────────────────────────────
 
 const https = require('https');
-const nodemailer = require('nodemailer');
+const fs = require('fs');
+const path = require('path');
+
 
 // ── CONFIG ────────────────────────────────────────────────────
 const CONFIG = {
@@ -18,13 +20,6 @@ const CONFIG = {
     apiKey: process.env.SALESRABBIT_API_KEY,
     baseUrl: 'api.salesrabbit.com'
   },
-  email: {
-    recipient: 'chris@coxres.com',
-    sender: process.env.EMAIL_SENDER,       // e.g. overwatch@coxres.com or a Gmail
-    password: process.env.EMAIL_PASSWORD,   // app password
-    smtpHost: process.env.SMTP_HOST || 'smtp.gmail.com',
-    smtpPort: 587
-  }
 };
 
 // ── SCORING WEIGHTS ────────────────────────────────────────────
@@ -61,17 +56,6 @@ const WEIGHTS = {
     photoCapPerProject: 20,
     zeroPhosPenalty: -5,       // if visited job with 0 photos
     platformCeiling: 15
-  },
-  email: {
-    customerEmailSent: 3,      // max 9 (3 emails)
-    responseUnder1hr: 5,       // max 10
-    response1to4hr: 2,
-    followUpAfterInspection: 3,
-    keywordBonus: 1,           // max 3
-    responseOver1hrPenalty: -5,
-    noResponsePenalty: -25,
-    zeroEmailPenalty: -3,
-    platformCeiling: 20
   },
   autoEliteThreshold: 2,       // contracts needed for auto-elite
   autoEliteScore: 95,
@@ -707,23 +691,60 @@ body { background:#0d0d1a; font-family:Arial,sans-serif; color:#e0e0e0; }
 </html>`;
 }
 
-// ── SEND EMAIL ─────────────────────────────────────────────────
-async function sendReport(htmlContent, dateLabel) {
-  const transporter = nodemailer.createTransporter({
-    host: CONFIG.email.smtpHost,
-    port: CONFIG.email.smtpPort,
-    secure: false,
-    auth: { user: CONFIG.email.sender, pass: CONFIG.email.password }
-  });
+// ── SAVE REPORT TO FILE ────────────────────────────────────────
+async function saveReport(htmlContent, dateLabel) {
 
-  await transporter.sendMail({
-    from: `"Overwatch — Cox Roofing" <${CONFIG.email.sender}>`,
-    to: CONFIG.email.recipient,
-    subject: `OVERWATCH Report — ${dateLabel}`,
-    html: htmlContent
-  });
+  // Create reports directory if it doesn't exist
+  const reportsDir = path.join(process.cwd(), 'reports');
+  if (!fs.existsSync(reportsDir)) fs.mkdirSync(reportsDir, { recursive: true });
 
-  console.log(`Report sent to ${CONFIG.email.recipient}`);
+  // Save dated report
+  const dateSlug = new Date().toISOString().slice(0, 10);
+  const reportPath = path.join(reportsDir, `overwatch-${dateSlug}.html`);
+  fs.writeFileSync(reportPath, htmlContent);
+
+  // Also overwrite latest.html so there's always one stable URL to bookmark
+  const latestPath = path.join(reportsDir, 'latest.html');
+  fs.writeFileSync(latestPath, htmlContent);
+
+  // Write a simple index page listing all past reports
+  const allReports = fs.readdirSync(reportsDir)
+    .filter(f => f.startsWith('overwatch-') && f.endsWith('.html'))
+    .sort()
+    .reverse();
+
+  const indexHtml = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>OVERWATCH — Report Archive</title>
+<style>
+  body { background:#0d0d1a; font-family:Arial,sans-serif; color:#e0e0e0; max-width:600px; margin:60px auto; padding:0 20px; }
+  h1 { color:#e94560; letter-spacing:4px; font-size:22px; margin-bottom:6px; }
+  p { color:#6666aa; font-size:13px; margin-bottom:32px; }
+  a { display:block; padding:14px 20px; background:#13132a; border:1px solid #1e1e3a; border-radius:8px; color:#fff; text-decoration:none; margin-bottom:10px; font-size:15px; }
+  a:hover { border-color:#e94560; }
+  a span { float:right; color:#6666aa; font-size:12px; }
+  .latest { border-color:rgba(46,204,113,.4); background:#0f1f1a; }
+</style>
+</head>
+<body>
+<h1>⬡ OVERWATCH</h1>
+<p>Cox Roofing & Restoration — Daily Performance Reports</p>
+<a class="latest" href="latest.html">📊 Latest Report (Today) <span>VIEW →</span></a>
+${allReports.map(f => {
+  const d = f.replace('overwatch-','').replace('.html','');
+  const label = new Date(d + 'T12:00:00').toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  return `<a href="${f}">${label} <span>VIEW →</span></a>`;
+}).join('\n')}
+</body>
+</html>`;
+
+  fs.writeFileSync(path.join(reportsDir, 'index.html'), indexHtml);
+
+  console.log(`Report saved: ${reportPath}`);
+  console.log(`Latest report: reports/latest.html`);
+  console.log(`Archive index: reports/index.html`);
 }
 
 // ── MAIN ───────────────────────────────────────────────────────
@@ -813,9 +834,9 @@ async function main() {
       }
     }
 
-    // 5. Build and send report
+    // 5. Build and save report
     const html = buildHTMLReport(repResults, dateRange.label, splitJobs);
-    await sendReport(html, dateRange.label);
+    await saveReport(html, dateRange.label);
 
     console.log('OVERWATCH complete.');
 

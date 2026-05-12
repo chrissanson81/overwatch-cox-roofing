@@ -121,32 +121,31 @@ function scoreJN(activities, jobs, repName, dateRange) {
     const note = (act.note || act.description || '').toLowerCase();
     const jobId = act.job_id || act.jnid || 'general';
 
-    if (type === 'status changed' && (note.includes('=> sold') || note.includes('=> approved') || note.includes('=> won') || note.includes('contract signed'))) {
-      contracts++; pts += WEIGHTS.jn.contract;
-      detail.push({ label: 'Contract / Job Sold', value: `+${WEIGHTS.jn.contract} pts`, good: true });
+    // Map actual JobNimbus task types to scoring categories
+    if (type === 'appointment' || type === 'initial inspection' || type === 'adjuster meeting') {
+      appointments++;
+      const p = WEIGHTS.jn.apptSelf;
+      pts += p;
+      detail.push({ label: `Appointment: ${act.record_type_name || type}`, value: `+${p} pts`, good: true });
+    } else if (type === 'residential client' || type === 'commercial client' || type === 'coc reminder') {
+      // Client touchpoints — treat as meaningful pipeline activity
+      if (stageMoves < 5) { stageMoves++; pts += WEIGHTS.jn.stage; }
+      detail.push({ label: `Client Activity: ${act.record_type_name || type}`, value: `+${WEIGHTS.jn.stage} pts`, good: true });
+    } else if (type === 'task') {
+      if (tasks < 10) { tasks++; pts += WEIGHTS.jn.task; }
     } else if (type.includes('estimate')) {
       estimates++; pts += WEIGHTS.jn.estimate;
       detail.push({ label: 'Estimate Submitted', value: `+${WEIGHTS.jn.estimate} pts`, good: true });
-    } else if (type === 'task created' || type.includes('appointment') || type.includes('scheduled') || note.includes('appointment set') || note.includes('inspection scheduled')) {
-      appointments++;
-      const isSelf = !note.includes('company') && !note.includes('provided lead');
-      const p = isSelf ? WEIGHTS.jn.apptSelf : WEIGHTS.jn.apptCompany;
-      pts += p;
-      detail.push({ label: `Appointment Set (${isSelf ? 'Self-Gen' : 'Company Lead'})`, value: `+${p} pts`, good: true });
-    } else if (type === 'job created' || type === 'contact created') {
+    } else if (type.includes('contract') || type.includes('sold') || type.includes('won') || (note.includes('=> sold')) || (note.includes('=> approved'))) {
+      contracts++; pts += WEIGHTS.jn.contract;
+      detail.push({ label: 'Contract / Job Sold', value: `+${WEIGHTS.jn.contract} pts`, good: true });
+    } else if (type.includes('lead') || type.includes('contact created') || type.includes('job created')) {
       leads++; pts += WEIGHTS.jn.lead;
       detail.push({ label: 'Lead Created', value: `+${WEIGHTS.jn.lead} pts`, good: true });
-    } else if (type === 'status changed' || type.includes('stage')) {
-      if (stageMoves < 5) { stageMoves++; pts += WEIGHTS.jn.stage; }
-    } else if (type.includes('email')) {
-      pts += 2;
-    } else if (type.includes('note') || type.includes('comment')) {
+    } else if (type.includes('note') || type.includes('email')) {
       notesPerJob[jobId] = (notesPerJob[jobId] || 0) + 1;
       if (notesPerJob[jobId] <= 5) { notes++; pts += WEIGHTS.jn.note; }
-    } else if (type.includes('task')) {
-      if (tasks < 4) { tasks++; pts += WEIGHTS.jn.task; }
     }
-  }
 
   // Pipeline check — only on active jobs, max 5 violations reported
   const repJobs = jobs.filter(j =>

@@ -2,17 +2,20 @@ name: OVERWATCH — Daily Report
 
 on:
   schedule:
-    # Runs at 3:00 AM UTC = 11:00 PM EST (accounting for UTC-4 EDT)
-    # Gives time to process data and deliver by 8 AM EST
+    # Runs at 3:00 AM UTC = 11:00 PM EST
     - cron: '0 3 * * *'
   
-  # Also allows manual trigger from GitHub for testing
+  # Manual trigger for testing
   workflow_dispatch:
 
 jobs:
   run-overwatch:
     runs-on: ubuntu-latest
     
+    # Permission to write files back to the repo
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -24,13 +27,18 @@ jobs:
 
       - name: Install dependencies
         run: npm install
-        working-directory: .
 
       - name: Run OVERWATCH
         env:
           JOBNIMBUS_API_KEY: ${{ secrets.JOBNIMBUS_API_KEY }}
           SALESRABBIT_API_KEY: ${{ secrets.SALESRABBIT_API_KEY }}
-          EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
-          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          OUTPUT_MODE: file
         run: node src/index.js
+
+      - name: Commit report to repository
+        run: |
+          git config --global user.name "Overwatch Bot"
+          git config --global user.email "overwatch@coxroofing.local"
+          git add reports/
+          git diff --staged --quiet || git commit -m "OVERWATCH Report — $(date +'%Y-%m-%d')"
+          git push

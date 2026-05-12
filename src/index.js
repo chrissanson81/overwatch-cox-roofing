@@ -58,13 +58,19 @@ async function fetchJN(dateRange) {
   // Fetch activities per job for yesterday's date range
   // JobNimbus requires job-scoped or contact-scoped activity queries
   const actRes = await apiGet(CONFIG.jobnimbus.baseUrl,
-    `${CONFIG.jobnimbus.basePath}/activities?date_start=${dateRange.start}&date_end=${dateRange.end}&size=1000`, h);
+    `${CONFIG.jobnimbus.basePath}/activities?date_start=${dateRange.start}&date_end=${dateRange.end}&limit=1000`, h);
   console.log(`JN Activities (date filtered): status=${actRes.status}, count=${actRes.body?.results?.length ?? 0}, total=${actRes.body?.count ?? 0}`);
+  if (actRes.body?.results?.length > 0) {
+    console.log('Activity sample:', JSON.stringify(actRes.body.results[0]).slice(0, 400));
+  }
 
   // Also try tasks endpoint separately
   const tasksRes = await apiGet(CONFIG.jobnimbus.baseUrl,
     `${CONFIG.jobnimbus.basePath}/tasks?date_start=${dateRange.start}&date_end=${dateRange.end}&size=500`, h);
   console.log(`JN Tasks: status=${tasksRes.status}, count=${tasksRes.body?.results?.length ?? 0}`);
+  if (tasksRes.body?.results?.length > 0) {
+    console.log('Task sample:', JSON.stringify(tasksRes.body.results[0]).slice(0, 400));
+  }
 
   // Jobs — only active, non-closed, updated in last 30 days
   const thirtyDaysAgo = Math.floor(Date.now()/1000) - (30 * 24 * 3600);

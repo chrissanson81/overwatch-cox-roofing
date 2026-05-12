@@ -393,7 +393,10 @@ async function main() {
   // Show what created_by_name values actually exist in tasks
   const taskNames = [...new Set(jnData.activities.map(a => a.created_by_name || a.created_by || 'unknown'))];
   console.log(`Unique task creators (${taskNames.length}):`, taskNames.slice(0,20).join(', '));
-    console.log(`Tasks matching yesterday's date range: ${jnData.activities.filter(a => { const c = a.date_created||0; return c >= dateRange.start && c <= dateRange.end; }).length}`);
+    const yesterdayTasks = jnData.activities.filter(a => { const c = a.date_created||0; return c >= dateRange.start && c <= dateRange.end; });
+  console.log(`Tasks matching yesterday's date range: ${yesterdayTasks.length}`);
+  console.log(`Yesterday task creators:`, yesterdayTasks.map(a => a.created_by_name).join(', '));
+  console.log(`Rep names we are matching against:`, reps.map(r => `${r.firstName} ${r.lastName}`).join(', '));
 
     const debugInfo = [
       `JN Activities total: ${jnData.activities.length}`,

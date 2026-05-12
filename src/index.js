@@ -146,6 +146,7 @@ function scoreJN(activities, jobs, repName, dateRange) {
       notesPerJob[jobId] = (notesPerJob[jobId] || 0) + 1;
       if (notesPerJob[jobId] <= 5) { notes++; pts += WEIGHTS.jn.note; }
     }
+  }
 
   // Pipeline check — only on active jobs, max 5 violations reported
   const repJobs = jobs.filter(j =>

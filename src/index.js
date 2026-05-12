@@ -341,8 +341,6 @@ function scoreSalesRabbit(repLeads, repUser) {
   // GPS check-in not available in leads endpoint — default to AT_LOCATION
     // until Sales Rabbit check-in API is confirmed
     const gpsStatus = 'AT_LOCATION';
-
-    const gpsStatus = getGPSStatus(pinLat, pinLon, repLat, repLon);
     const outcome = (lead.status || lead.status_name || lead.disposition || '').toLowerCase();
 
     if (gpsStatus === 'AT_LOCATION') {

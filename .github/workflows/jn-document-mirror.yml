@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   mirror-proof:
@@ -17,7 +16,6 @@ jobs:
       JOBNIMBUS_API_KEY: ${{ secrets.JOBNIMBUS_API_KEY }}
       TARGET_JOB_ID_SHA256: 0a270e374d8c5c47bda7e93b28442d80cc2d161497016f76a782c698d92945c1
       TARGET_FILENAME_SHA256: b1c1100d0a29b17b38a67559791f8cb5766635993c832dd00569b4d73f479bfd
-      BRIDGE_URL: https://cox-jn-document-bridge-3vw8yc.v2.appdeploy.ai
       JN_BRIDGE_PUBLIC_KEY: |
         -----BEGIN PUBLIC KEY-----
         MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA2zDqfPW1gN97UoIlNHnP
@@ -32,25 +30,20 @@ jobs:
         -----END PUBLIC KEY-----
 
     steps:
-      - name: Fetch, encrypt, and mirror one known carrier PDF
+      - name: Fetch and encrypt known carrier PDF (GET only)
         shell: bash
         run: |
           set -euo pipefail
           test -n "$JOBNIMBUS_API_KEY"
 
-          oidc_url="${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=cox-jn-doc-bridge"
-          export OIDC_TOKEN=$(curl -sSf -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "$oidc_url" | jq -r '.value')
-          test -n "$OIDC_TOKEN"
-
           node <<'NODE'
           const crypto = require('crypto');
+          const fs = require('fs');
 
           const jnToken = process.env.JOBNIMBUS_API_KEY;
           const targetJobHash = process.env.TARGET_JOB_ID_SHA256;
           const targetFilenameHash = process.env.TARGET_FILENAME_SHA256;
-          const bridgeUrl = process.env.BRIDGE_URL;
           const publicKey = process.env.JN_BRIDGE_PUBLIC_KEY;
-          const oidc = process.env.OIDC_TOKEN;
           const sha = value => crypto.createHash('sha256').update(String(value || '')).digest('hex');
 
           async function jnJson(path) {
@@ -87,13 +80,20 @@ jobs:
             if (raw.subarray(0, 5).toString('ascii') !== '%PDF-') throw new Error('Downloaded file is not PDF');
 
             const aesKey = crypto.randomBytes(32);
-            const wrap = crypto.publicEncrypt({ key: publicKey, oaepHash: 'sha256', padding: crypto.constants.RSA_PKCS1_OAEP_PADDING }, aesKey);
+            const wrappedKey = crypto.publicEncrypt(
+              { key: publicKey, oaepHash: 'sha256', padding: crypto.constants.RSA_PKCS1_OAEP_PADDING },
+              aesKey
+            );
 
             function encrypt(buffer) {
               const iv = crypto.randomBytes(12);
               const cipher = crypto.createCipheriv('aes-256-gcm', aesKey, iv);
               const ciphertext = Buffer.concat([cipher.update(buffer), cipher.final()]);
-              return { iv: iv.toString('base64'), tag: cipher.getAuthTag().toString('base64'), ciphertext: ciphertext.toString('base64') };
+              return {
+                iv: iv.toString('base64'),
+                tag: cipher.getAuthTag().toString('base64'),
+                ciphertext: ciphertext.toString('base64'),
+              };
             }
 
             const metadata = {
@@ -113,64 +113,19 @@ jobs:
             const pkg = {
               version: 1,
               algorithm: 'RSA-OAEP-256+A256GCM',
-              wrappedKey: wrap.toString('base64'),
+              jobHash: targetJobHash,
+              fileHash: sha(file.jnid),
+              wrappedKey: wrappedKey.toString('base64'),
               metadata: encrypt(Buffer.from(JSON.stringify(metadata), 'utf8')),
               content: encrypt(raw),
             };
 
-            const fileHash = sha(file.jnid);
-            const serialized = JSON.stringify(pkg);
-            const packageSha256 = sha(serialized);
-            const chunkChars = 300000;
-            const parts = [];
-            for (let i = 0; i < serialized.length; i += chunkChars) {
-              parts.push(serialized.slice(i, i + chunkChars));
-            }
-
-            for (let partIndex = 0; partIndex < parts.length; partIndex++) {
-              const response = await fetch(bridgeUrl + '/api/internal/ingest-chunk', {
-                method: 'POST',
-                headers: {
-                  Authorization: `Bearer ${oidc}`,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  jobHash: targetJobHash,
-                  fileHash,
-                  partIndex,
-                  totalParts: parts.length,
-                  content: parts[partIndex],
-                }),
-              });
-              if (!response.ok) {
-                const body = await response.text();
-                throw new Error('Bridge chunk ingest failed ' + response.status + ': ' + body.slice(0, 300));
-              }
-            }
-
-            const finalize = await fetch(bridgeUrl + '/api/internal/finalize', {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${oidc}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                jobHash: targetJobHash,
-                fileHash,
-                totalParts: parts.length,
-                packageSha256,
-              }),
-            });
-            if (!finalize.ok) {
-              const body = await finalize.text();
-              throw new Error('Bridge finalize failed ' + finalize.status + ': ' + body.slice(0, 300));
-            }
-
-            console.log('MIRROR_SUCCESS=yes');
+            fs.writeFileSync('/tmp/jobnimbus-document.jnenc.json', JSON.stringify(pkg));
+            console.log('ENCRYPTION_SUCCESS=yes');
             console.log('JOB_HASH=' + targetJobHash);
-            console.log('FILE_HASH=' + fileHash);
-            console.log('ENCRYPTED_PARTS=' + parts.length);
+            console.log('FILE_HASH=' + pkg.fileHash);
             console.log('PLAINTEXT_BYTES=' + raw.length);
+            console.log('PACKAGE_SHA256=' + sha(JSON.stringify(pkg)));
           }
 
           run().catch(err => {
@@ -178,3 +133,12 @@ jobs:
             process.exit(1);
           });
           NODE
+
+      - name: Store encrypted package only
+        uses: actions/upload-artifact@v4
+        with:
+          name: jobnimbus-encrypted-document
+          path: /tmp/jobnimbus-document.jnenc.json
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0

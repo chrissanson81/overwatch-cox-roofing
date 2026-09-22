@@ -14,9 +14,10 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Find known PDF and verify binary retrieval (GET only)
+      - name: Resolve target job and verify PDF retrieval (GET only)
         env:
           JOBNIMBUS_API_KEY: ${{ secrets.JOBNIMBUS_API_KEY }}
+          TARGET_JOB_ID_SHA256: 0a270e374d8c5c47bda7e93b28442d80cc2d161497016f76a782c698d92945c1
           TARGET_FILENAME_SHA256: b1c1100d0a29b17b38a67559791f8cb5766635993c832dd00569b4d73f479bfd
         shell: bash
         run: |
@@ -27,63 +28,63 @@ jobs:
           const crypto = require('crypto');
 
           const token = process.env.JOBNIMBUS_API_KEY;
-          const targetHash = process.env.TARGET_FILENAME_SHA256;
-          const headers = {
+          const targetJobHash = process.env.TARGET_JOB_ID_SHA256;
+          const targetFileHash = process.env.TARGET_FILENAME_SHA256;
+          const authHeaders = {
             Authorization: `Bearer ${token}`,
             Accept: 'application/json'
           };
 
+          const sha = value => crypto.createHash('sha256').update(String(value || '')).digest('hex');
+
           async function getJson(url) {
-            const res = await fetch(url, { headers });
-            console.log('LIST_HTTP_STATUS=' + res.status);
-            if (!res.ok) throw new Error('List request failed: ' + res.status);
+            const res = await fetch(url, { headers: authHeaders });
+            if (!res.ok) throw new Error(`GET failed ${res.status}: ${new URL(url).pathname}`);
             return res.json();
           }
 
           (async () => {
-            let offset = 0;
-            const size = 1000;
-            let found = null;
-            let total = null;
-
-            while (!found) {
+            let job = null;
+            for (let offset = 0; offset < 10000 && !job; offset += 1000) {
               const data = await getJson(
-                `https://app.jobnimbus.com/api1/files?from=${offset}&size=${size}`
+                `https://app.jobnimbus.com/api1/jobs?from=${offset}&size=1000&sort_field=date_created&sort_direction=desc`
               );
-              const files = Array.isArray(data.files) ? data.files : [];
-              if (total === null) total = Number(data.count || 0);
-              console.log('PAGE_OFFSET=' + offset + ' PAGE_COUNT=' + files.length + ' TOTAL=' + total);
-
-              found = files.find(file => {
-                const name = String(file.filename || '');
-                const hash = crypto.createHash('sha256').update(name).digest('hex');
-                return hash === targetHash;
-              }) || null;
-
-              if (found) break;
-              offset += files.length;
-              if (!files.length || offset >= total) break;
+              const rows = Array.isArray(data.results) ? data.results : [];
+              job = rows.find(row => sha(row.jnid || row.id) === targetJobHash) || null;
+              if (!rows.length) break;
             }
+            if (!job) throw new Error('Target job was not found in recent JobNimbus jobs.');
+            console.log('TARGET_JOB_FOUND=yes');
 
-            if (!found) throw new Error('Target file was not found in JobNimbus metadata.');
-            console.log('TARGET_FOUND=yes');
-            console.log('TARGET_METADATA_CONTENT_TYPE=' + (found.content_type || 'unknown'));
-            console.log('TARGET_METADATA_SIZE=' + (found.size || 0));
-            console.log('TARGET_PRIMARY_TYPE=' + (found.primary?.type || 'unknown'));
-            console.log('TARGET_RELATED_TYPES=' + [...new Set((found.related || []).map(x => x.type))].join(','));
+            const filter = encodeURIComponent(JSON.stringify({
+              must: [{ term: { 'related.id': job.jnid || job.id } }]
+            }));
+            const fileData = await getJson(
+              `https://app.jobnimbus.com/api1/files?from=0&size=1000&filter=${filter}&sort_field=date_created&sort_direction=desc`
+            );
+            const files = Array.isArray(fileData.files) ? fileData.files : [];
+            console.log('TARGET_JOB_FILE_COUNT=' + files.length);
+            console.log('TARGET_JOB_FILE_TYPES=' + [...new Set(files.map(x => x.record_type_name).filter(Boolean))].join(','));
+            console.log('TARGET_JOB_CONTENT_TYPES=' + [...new Set(files.map(x => x.content_type).filter(Boolean))].join(','));
+
+            const found = files.find(file => sha(file.filename) === targetFileHash);
+            if (!found) throw new Error('Known carrier PDF was not returned for the target job.');
+            console.log('TARGET_FILE_FOUND=yes');
+            console.log('TARGET_FILE_METADATA_CONTENT_TYPE=' + (found.content_type || 'unknown'));
+            console.log('TARGET_FILE_METADATA_SIZE=' + (found.size || 0));
 
             const res = await fetch(
               `https://app.jobnimbus.com/files/${encodeURIComponent(found.jnid)}`,
               { headers: { Authorization: `Bearer ${token}` }, redirect: 'follow' }
             );
             const buf = Buffer.from(await res.arrayBuffer());
+            const isPdf = buf.subarray(0, 5).toString('ascii') === '%PDF-';
             console.log('TARGET_DOWNLOAD_HTTP_STATUS=' + res.status);
             console.log('TARGET_DOWNLOAD_CONTENT_TYPE=' + (res.headers.get('content-type') || 'unknown'));
             console.log('TARGET_DOWNLOAD_BYTES=' + buf.length);
+            console.log('TARGET_DOWNLOAD_IS_PDF=' + (isPdf ? 'yes' : 'no'));
             console.log('TARGET_DOWNLOAD_SHA256=' + crypto.createHash('sha256').update(buf).digest('hex'));
-            const pdf = buf.subarray(0, 5).toString('ascii') === '%PDF-';
-            console.log('TARGET_DOWNLOAD_IS_PDF=' + (pdf ? 'yes' : 'no'));
-            if (!res.ok || !pdf) throw new Error('Target did not download as a PDF.');
+            if (!res.ok || !isPdf) throw new Error('Target did not download as a PDF.');
           })().catch(err => {
             console.error(err.message);
             process.exit(1);

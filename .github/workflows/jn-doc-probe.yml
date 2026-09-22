@@ -1,4 +1,5 @@
 name: JobNimbus Document Read Probe
+# read-only probe
 
 on:
   push:

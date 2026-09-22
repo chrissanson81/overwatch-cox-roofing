@@ -39,7 +39,7 @@ jobs:
           test -n "$JOBNIMBUS_API_KEY"
 
           oidc_url="${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=cox-jn-doc-bridge"
-          OIDC_TOKEN=$(curl -sSf -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "$oidc_url" | jq -r '.value')
+          export OIDC_TOKEN=$(curl -sSf -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "$oidc_url" | jq -r '.value')
           test -n "$OIDC_TOKEN"
 
           node <<'NODE'
@@ -143,5 +143,3 @@ jobs:
             process.exit(1);
           });
           NODE
-        env:
-          OIDC_TOKEN: ${{ env.OIDC_TOKEN }}

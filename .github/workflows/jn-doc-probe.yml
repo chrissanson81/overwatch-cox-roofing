@@ -1,0 +1,66 @@
+name: JobNimbus Document Read Probe
+
+on:
+  push:
+    paths:
+      - '.github/workflows/jn-doc-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe JobNimbus files endpoint (GET only)
+        env:
+          JOBNIMBUS_API_KEY: ${{ secrets.JOBNIMBUS_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$JOBNIMBUS_API_KEY"
+          code=$(curl -sS -o /tmp/jn-files.json -w "%{http_code}" \
+            -H "Authorization: Bearer $JOBNIMBUS_API_KEY" \
+            -H "Accept: application/json" \
+            "https://app.jobnimbus.com/api1/files?limit=1")
+          echo "FILES_HTTP_STATUS=$code"
+          if [ "$code" != "200" ]; then
+            echo "JobNimbus /api1/files did not return 200."
+            exit 1
+          fi
+
+          node <<'NODE'
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('/tmp/jn-files.json', 'utf8'));
+          const records = Array.isArray(data) ? data :
+            Array.isArray(data.results) ? data.results :
+            Array.isArray(data.data) ? data.data : [];
+          console.log('TOP_LEVEL_KEYS=' + Object.keys(data).join(','));
+          console.log('RECORD_COUNT_RETURNED=' + records.length);
+          if (!records.length) process.exit(0);
+          const first = records[0];
+          console.log('FIRST_RECORD_KEYS=' + Object.keys(first).join(','));
+          for (const [k,v] of Object.entries(first)) {
+            if (v && typeof v === 'object' && !Array.isArray(v)) {
+              console.log('NESTED_KEYS_' + k.toUpperCase() + '=' + Object.keys(v).join(','));
+            } else if (Array.isArray(v) && v.length && v[0] && typeof v[0] === 'object') {
+              console.log('ARRAY_ITEM_KEYS_' + k.toUpperCase() + '=' + Object.keys(v[0]).join(','));
+            }
+          }
+          const id = first.jnid || first.id || first.file_id || first.fileId;
+          if (id) fs.writeFileSync('/tmp/jn-file-id.txt', String(id));
+          NODE
+
+          if [ -s /tmp/jn-file-id.txt ]; then
+            file_id=$(cat /tmp/jn-file-id.txt)
+            file_code=$(curl -sS -L -o /tmp/jn-file.bin -D /tmp/jn-file.headers -w "%{http_code}" \
+              -H "Authorization: Bearer $JOBNIMBUS_API_KEY" \
+              "https://app.jobnimbus.com/files/$file_id")
+            echo "FILE_DOWNLOAD_HTTP_STATUS=$file_code"
+            echo "FILE_DOWNLOAD_BYTES=$(wc -c < /tmp/jn-file.bin)"
+            content_type=$(awk 'BEGIN{IGNORECASE=1} /^content-type:/{gsub("\\r",""); print $2; exit}' /tmp/jn-file.headers || true)
+            echo "FILE_DOWNLOAD_CONTENT_TYPE=${content_type:-unknown}"
+          else
+            echo "FILE_DOWNLOAD_SKIPPED=no_file_identifier_found"
+          fi

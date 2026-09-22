@@ -119,22 +119,57 @@ jobs:
             };
 
             const fileHash = sha(file.jnid);
-            const response = await fetch(bridgeUrl + '/api/internal/ingest', {
+            const serialized = JSON.stringify(pkg);
+            const packageSha256 = sha(serialized);
+            const chunkChars = 300000;
+            const parts = [];
+            for (let i = 0; i < serialized.length; i += chunkChars) {
+              parts.push(serialized.slice(i, i + chunkChars));
+            }
+
+            for (let partIndex = 0; partIndex < parts.length; partIndex++) {
+              const response = await fetch(bridgeUrl + '/api/internal/ingest-chunk', {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${oidc}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  jobHash: targetJobHash,
+                  fileHash,
+                  partIndex,
+                  totalParts: parts.length,
+                  content: parts[partIndex],
+                }),
+              });
+              if (!response.ok) {
+                const body = await response.text();
+                throw new Error('Bridge chunk ingest failed ' + response.status + ': ' + body.slice(0, 300));
+              }
+            }
+
+            const finalize = await fetch(bridgeUrl + '/api/internal/finalize', {
               method: 'POST',
               headers: {
                 Authorization: `Bearer ${oidc}`,
                 'Content-Type': 'application/json',
               },
-              body: JSON.stringify({ jobHash: targetJobHash, fileHash, package: pkg }),
+              body: JSON.stringify({
+                jobHash: targetJobHash,
+                fileHash,
+                totalParts: parts.length,
+                packageSha256,
+              }),
             });
-            if (!response.ok) {
-              const body = await response.text();
-              throw new Error('Bridge ingest failed ' + response.status + ': ' + body.slice(0, 300));
+            if (!finalize.ok) {
+              const body = await finalize.text();
+              throw new Error('Bridge finalize failed ' + finalize.status + ': ' + body.slice(0, 300));
             }
 
             console.log('MIRROR_SUCCESS=yes');
             console.log('JOB_HASH=' + targetJobHash);
             console.log('FILE_HASH=' + fileHash);
+            console.log('ENCRYPTED_PARTS=' + parts.length);
             console.log('PLAINTEXT_BYTES=' + raw.length);
           }
 

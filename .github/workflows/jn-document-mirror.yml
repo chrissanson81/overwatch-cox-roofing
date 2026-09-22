@@ -1,0 +1,147 @@
+name: JobNimbus Encrypted Document Mirror
+
+on:
+  push:
+    paths:
+      - '.github/workflows/jn-document-mirror.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  mirror-proof:
+    runs-on: ubuntu-latest
+    env:
+      JOBNIMBUS_API_KEY: ${{ secrets.JOBNIMBUS_API_KEY }}
+      TARGET_JOB_ID_SHA256: 0a270e374d8c5c47bda7e93b28442d80cc2d161497016f76a782c698d92945c1
+      TARGET_FILENAME_SHA256: b1c1100d0a29b17b38a67559791f8cb5766635993c832dd00569b4d73f479bfd
+      BRIDGE_URL: https://cox-jn-document-bridge-3vw8yc.v2.appdeploy.ai
+      JN_BRIDGE_PUBLIC_KEY: |
+        -----BEGIN PUBLIC KEY-----
+        MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA2zDqfPW1gN97UoIlNHnP
+        5tQKb+432eyB1K2lriEDFBQBa2k/t8Gt2dyyA5TvF1L0trHfoWsUOExbKg83+6p1
+        cBUe0zz517GRWb1qd41mv09gb0cxdX8WZHXnr8mdS+OUSl0Gta67j4UeI+PwH2Rf
+        3YxwiqzkM5B5Cyd8o/4YNA0VUmn8qoJD+W8wzTbDdT/iioU8yz5qnwI7Iq1iqW+a
+        g9LQvmsGVVCAyXu542ryDVJM9ia7ytU/qjb6hmwp0a2l2t0tXMMptkuC5Hny7l4Z
+        d94gqODkq8ji59I43qoKaKwwJYVCoB+NugF15AqcXAN7dOa8WZVrtLP/zBar2d0c
+        nbAYvOzIYwKrhuiGCY+q0vHzeBJgQIq0nj1zRNIBzQjSiaA22CMn4H/KsmRkH9bX
+        QuVGt1Xb1rOLaL4GnwbFATkHt1RsGDVKT6J4q1z+647/dWH6Nl/+kzwygJ6yZjzT
+        vfld/jgI+E4iuj+PeFzdXXW46oR1VGZ9wNQ5JBO6ROoBAgMBAAE=
+        -----END PUBLIC KEY-----
+
+    steps:
+      - name: Fetch, encrypt, and mirror one known carrier PDF
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$JOBNIMBUS_API_KEY"
+
+          oidc_url="${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=cox-jn-doc-bridge"
+          OIDC_TOKEN=$(curl -sSf -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "$oidc_url" | jq -r '.value')
+          test -n "$OIDC_TOKEN"
+
+          node <<'NODE'
+          const crypto = require('crypto');
+
+          const jnToken = process.env.JOBNIMBUS_API_KEY;
+          const targetJobHash = process.env.TARGET_JOB_ID_SHA256;
+          const targetFilenameHash = process.env.TARGET_FILENAME_SHA256;
+          const bridgeUrl = process.env.BRIDGE_URL;
+          const publicKey = process.env.JN_BRIDGE_PUBLIC_KEY;
+          const oidc = process.env.OIDC_TOKEN;
+          const sha = value => crypto.createHash('sha256').update(String(value || '')).digest('hex');
+
+          async function jnJson(path) {
+            const res = await fetch('https://app.jobnimbus.com' + path, {
+              headers: { Authorization: `Bearer ${jnToken}`, Accept: 'application/json' },
+            });
+            if (!res.ok) throw new Error('JobNimbus GET failed: ' + res.status);
+            return res.json();
+          }
+
+          async function run() {
+            let job = null;
+            for (let offset = 0; offset < 10000 && !job; offset += 1000) {
+              const data = await jnJson(`/api1/jobs?from=${offset}&size=1000&sort_field=date_created&sort_direction=desc`);
+              const rows = Array.isArray(data.results) ? data.results : [];
+              job = rows.find(row => sha(row.jnid || row.id) === targetJobHash) || null;
+              if (!rows.length) break;
+            }
+            if (!job) throw new Error('Target job not found');
+
+            const jobId = job.jnid || job.id;
+            const filter = encodeURIComponent(JSON.stringify({ must: [{ term: { 'related.id': jobId } }] }));
+            const fileData = await jnJson(`/api1/files?from=0&size=1000&filter=${filter}&sort_field=date_created&sort_direction=desc`);
+            const files = Array.isArray(fileData.files) ? fileData.files : [];
+            const file = files.find(item => sha(item.filename) === targetFilenameHash);
+            if (!file) throw new Error('Target carrier PDF not found');
+
+            const download = await fetch(`https://app.jobnimbus.com/files/${encodeURIComponent(file.jnid)}`, {
+              headers: { Authorization: `Bearer ${jnToken}` },
+              redirect: 'follow',
+            });
+            if (!download.ok) throw new Error('JobNimbus file GET failed: ' + download.status);
+            const raw = Buffer.from(await download.arrayBuffer());
+            if (raw.subarray(0, 5).toString('ascii') !== '%PDF-') throw new Error('Downloaded file is not PDF');
+
+            const aesKey = crypto.randomBytes(32);
+            const wrap = crypto.publicEncrypt({ key: publicKey, oaepHash: 'sha256', padding: crypto.constants.RSA_PKCS1_OAEP_PADDING }, aesKey);
+
+            function encrypt(buffer) {
+              const iv = crypto.randomBytes(12);
+              const cipher = crypto.createCipheriv('aes-256-gcm', aesKey, iv);
+              const ciphertext = Buffer.concat([cipher.update(buffer), cipher.final()]);
+              return { iv: iv.toString('base64'), tag: cipher.getAuthTag().toString('base64'), ciphertext: ciphertext.toString('base64') };
+            }
+
+            const metadata = {
+              filename: file.filename,
+              fileJnid: file.jnid,
+              contentType: file.content_type,
+              size: file.size,
+              recordType: file.record_type_name,
+              dateCreated: file.date_created,
+              dateUpdated: file.date_updated,
+              primary: file.primary,
+              related: file.related,
+              md5: file.md5,
+              source: 'JobNimbus',
+            };
+
+            const pkg = {
+              version: 1,
+              algorithm: 'RSA-OAEP-256+A256GCM',
+              wrappedKey: wrap.toString('base64'),
+              metadata: encrypt(Buffer.from(JSON.stringify(metadata), 'utf8')),
+              content: encrypt(raw),
+            };
+
+            const fileHash = sha(file.jnid);
+            const response = await fetch(bridgeUrl + '/api/internal/ingest', {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${oidc}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ jobHash: targetJobHash, fileHash, package: pkg }),
+            });
+            if (!response.ok) {
+              const body = await response.text();
+              throw new Error('Bridge ingest failed ' + response.status + ': ' + body.slice(0, 300));
+            }
+
+            console.log('MIRROR_SUCCESS=yes');
+            console.log('JOB_HASH=' + targetJobHash);
+            console.log('FILE_HASH=' + fileHash);
+            console.log('PLAINTEXT_BYTES=' + raw.length);
+          }
+
+          run().catch(err => {
+            console.error(err.message);
+            process.exit(1);
+          });
+          NODE
+        env:
+          OIDC_TOKEN: ${{ env.OIDC_TOKEN }}
